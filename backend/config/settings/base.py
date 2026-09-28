@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.devices",
     "apps.customers",
     "apps.access",
+    "apps.commercial",
     "apps.portal",
     "apps.audit",
     "apps.notifications",
