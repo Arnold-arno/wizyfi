@@ -48,6 +48,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "connections:view", "connections:disconnect",
         "hard_logout:view", "hard_logout:schedule", "hard_logout:cancel",
         "audit:view",
+        "sales:view", "sales:create", "transactions:view",
     },
     Role.AGENT: {
         "places:view",
@@ -58,11 +59,13 @@ DEFAULT_ROLE_PERMISSIONS = {
         "vouchers:view", "vouchers:issue",
         "network_cycles:view",
         "connections:view", "connections:disconnect",
+        "sales:view", "sales:create",
     },
     Role.READ_ONLY: {
         "places:view", "routers:view", "devices:view", "customers:view",
         "access_plans:view", "vouchers:view", "network_cycles:view",
         "connections:view", "hard_logout:view",
+        "sales:view", "transactions:view",
     },
 }
 
