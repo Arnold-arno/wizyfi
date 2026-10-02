@@ -1,12 +1,15 @@
 # apps/access/views.py
 from django.db import IntegrityError
+from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from apps.common.exceptions import ConflictError
 from apps.common.permissions import HasPermissionCode
 from apps.common.views import OrganizationScopedMixin
+from apps.connectors import services as connector_services
 from apps.places.models import Place
 
 from .models import AccessPlan, HardLogoutEvent, NetworkCycle, Session, Voucher
@@ -162,15 +165,20 @@ class NetworkCycleViewSet(OrganizationScopedMixin, viewsets.ModelViewSet):
 
 
 class SessionViewSet(OrganizationScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    """/api/v1/sessions/ — read-only. Sessions are created by the
-    redemption/auth flow (apps.portal, next round) and mutated only by
-    the Hard Logout execution path and connection-disconnect actions,
+    """/api/v1/sessions/ — the "Connections" resource per doc09's API
+    inventory ("GET /connections; GET /connections/{id}; Disconnect
+    with confirmation/idempotency"). Read-only apart from the disconnect
+    action: sessions are created by the redemption/auth flow
+    (apps.portal) and mutated only here or by Hard Logout execution,
     never by a direct client write (doc07: 'React never owns business
     truth')."""
 
     serializer_class = SessionSerializer
     permission_classes = [HasPermissionCode]
-    required_permission_map = {"list": "connections:view", "retrieve": "connections:view"}
+    required_permission_map = {
+        "list": "connections:view", "retrieve": "connections:view",
+        "disconnect": "connections:disconnect",
+    }
     filterset_fields = ["status", "place", "router"]
 
     def get_queryset(self):
@@ -178,6 +186,26 @@ class SessionViewSet(OrganizationScopedMixin, mixins.ListModelMixin, mixins.Retr
         return Session.objects.filter(
             place__organization_id=membership.organization_id
         ).select_related("customer", "router", "place").order_by("-started_at")
+
+    @action(detail=True, methods=["post"])
+    def disconnect(self, request, pk=None):
+        """Exact target identified by URL (this specific session) — no
+        ambiguous scope, per doc02 §5's Live Connections disconnect
+        flow. Idempotent: disconnecting an already-disconnected session
+        is a success, not an error (same guarantee the underlying
+        adapter call itself makes)."""
+        session = self.get_object()
+        if session.status == "DISCONNECTED":
+            return Response(SessionSerializer(session).data)
+
+        outcome = connector_services.disconnect_session(session.router, str(session.id))
+        if outcome.success:
+            session.status = "DISCONNECTED"
+            session.ended_at = timezone.now()
+            session.save(update_fields=["status", "ended_at", "updated_at"])
+            return Response(SessionSerializer(session).data)
+
+        raise ConflictError(outcome.error_message or "Failed to disconnect this session.")
 
 
 class HardLogoutEventViewSet(
