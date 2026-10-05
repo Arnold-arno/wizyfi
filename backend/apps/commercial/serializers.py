@@ -17,11 +17,20 @@ class SaleCreateSerializer(serializers.Serializer):
 
 
 class SaleSerializer(serializers.ModelSerializer):
+    # CHANGED: human-readable names alongside the raw ids, so the Sales table
+    # doesn't have to render UUIDs. SaleViewSet.get_queryset already does
+    # select_related("place", "customer", "access_plan"), so this adds no
+    # queries. Customer is deliberately NOT expanded: the sales list has no
+    # need for a customer's name/phone, and PII stays out by default.
+    # (Same default=None pattern as audit.AuditEventSerializer.actor_email.)
+    place_name = serializers.CharField(source="place.name", read_only=True, default=None)
+    access_plan_name = serializers.CharField(source="access_plan.name", read_only=True, default=None)
+
     class Meta:
         model = Sale
         fields = [
-            "id", "place", "customer", "access_plan", "voucher",
-            "total", "currency", "status", "sold_at", "created_at",
+            "id", "place", "place_name", "customer", "access_plan", "access_plan_name",
+            "voucher", "total", "currency", "status", "sold_at", "created_at",
         ]
         read_only_fields = fields
 

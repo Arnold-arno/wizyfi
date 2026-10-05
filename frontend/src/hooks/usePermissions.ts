@@ -1,27 +1,28 @@
 // src/hooks/usePermissions.ts
 //
-// ⚠️ RECONCILIATION NOTE
-// Expectations_and_workflow confirms the org/membership model already
-// carries "role-based membership and granular permission codes" on the
-// backend, and the frontend already has a Zustand auth store. This is a
-// minimal reference hook so AccessPlansPage / VouchersPage type-check and
-// run standalone. Replace the body with a read from the real auth store
-// (e.g. `useAuthStore((s) => s.permissions)`), keeping the same
-// `hasPermission(code: string): boolean` signature so nothing above needs
-// to change. Reminder: this is a UX convenience only — every mutation must
-// still be authorized server-side (doc07 §Authentication & Authorization).
+// REPLACES the Round-10 placeholder (which read window.__WIZYFI_PERMISSIONS__
+// and therefore failed closed for everyone). Same signature —
+// hasPermission(code): boolean — so AccessPlansPage / VouchersPage are
+// unchanged. Reads the effective codes the backend now returns on each
+// membership (MembershipSerializer.permissions).
+//
+// UX convenience only: it hides/shows controls. Every request is still
+// authorised server-side by HasPermissionCode (doc07).
 
-import { useMemo } from "react";
+import { useCallback } from "react";
+import { useActiveMembership } from "../state/sessionStore";
 
 export function usePermissions() {
-  // Placeholder: reads a flat permission-code array off whatever the
-  // existing auth store exposes at window.__WIZYFI_PERMISSIONS__ in dev,
-  // or defaults to an empty set (fail-closed) otherwise.
-  const permissions = useMemo<string[]>(() => {
-    return (globalThis as { __WIZYFI_PERMISSIONS__?: string[] }).__WIZYFI_PERMISSIONS__ ?? [];
-  }, []);
+  const membership = useActiveMembership();
 
-  const hasPermission = (code: string) => permissions.includes(code);
+  const hasPermission = useCallback(
+    (code: string): boolean => {
+      if (!membership) return false;
+      if (membership.revokedPermissions.includes(code)) return false; // revocation wins
+      return membership.permissions.includes("*") || membership.permissions.includes(code);
+    },
+    [membership]
+  );
 
-  return { permissions, hasPermission };
+  return { hasPermission, membership, permissions: membership?.permissions ?? [] };
 }

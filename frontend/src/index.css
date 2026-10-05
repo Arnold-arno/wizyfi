@@ -1,3 +1,6 @@
+/* Semantic theme tokens (light + .dark). Must come first. */
+@import "./styles/theme-foundation.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,8 +14,6 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-
-  color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -27,7 +28,6 @@ body,
 body {
   min-width: 320px;
   min-height: 100vh;
-  background: #020617;
 }
 
 button,
