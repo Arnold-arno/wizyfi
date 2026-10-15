@@ -1,4 +1,7 @@
 # apps/access/tests/test_hard_logout.py
+# CHANGED (Round 14): test_execute_on_cancelled_is_a_noop used the removed
+# HTTP execute action; it now exercises the same property through the service,
+# and a new test pins that the endpoint is gone.
 from unittest.mock import patch
 
 import pytest
@@ -67,20 +70,29 @@ class TestScheduleAndCancelHttp:
         second = auth_client.post(f"/api/v1/hard-logout-events/{event_id}/cancel/", {}, format="json", **org_headers)
         assert second.status_code == 409
 
-    def test_execute_on_cancelled_is_a_noop(self, auth_client, place, org_headers):
-        create = auth_client.post(
-            "/api/v1/hard-logout-events/",
-            {
-                "place": str(place.id), "scopeType": "PLACE",
-                "scheduledAt": "2027-01-01T00:00:00Z", "scheduledTimezone": "UTC",
-            },
-            format="json", **org_headers,
+    def test_execute_on_cancelled_is_a_noop(self, auth_client, place, user, org_headers):
+        event = schedule_hard_logout_event(
+            place=place, scope_type="PLACE", router_ids=[],
+            scheduled_at=timezone.now() + timezone.timedelta(minutes=5),
+            scheduled_timezone="UTC", created_by=user,
         )
-        event_id = create.data["id"]
-        auth_client.post(f"/api/v1/hard-logout-events/{event_id}/cancel/", {}, format="json", **org_headers)
-        exe = auth_client.post(f"/api/v1/hard-logout-events/{event_id}/execute/", {}, format="json", **org_headers)
-        assert exe.status_code == 200
-        assert exe.data["status"] == "CANCELLED"
+        cancel_hard_logout_event(event, actor=user)
+        result = execute_hard_logout_event(event.id)
+        assert result.status == "CANCELLED"
+        assert result.attempt_count == 0
+
+    def test_http_execute_endpoint_no_longer_exists(self, auth_client, place, user, org_headers):
+        event = schedule_hard_logout_event(
+            place=place, scope_type="PLACE", router_ids=[],
+            scheduled_at=timezone.now() + timezone.timedelta(minutes=5),
+            scheduled_timezone="UTC", created_by=user,
+        )
+        resp = auth_client.post(
+            f"/api/v1/hard-logout-events/{event.id}/execute/", {}, format="json", **org_headers
+        )
+        assert resp.status_code == 404
+        event.refresh_from_db()
+        assert event.status == "SCHEDULED"  # a future event can't be run early over HTTP
 
     def test_nonexistent_event_gives_404(self, auth_client, org_headers):
         fake_id = "00000000-0000-0000-0000-000000000001"
@@ -90,10 +102,6 @@ class TestScheduleAndCancelHttp:
 
 @pytest.mark.django_db
 class TestExecutionSequence:
-    """Direct service-layer tests of the lock -> disconnect -> verify ->
-    record -> finalize sequence — the part of this whole backend
-    Expectations_and_workflow is most insistent about getting right."""
-
     def _two_routers_with_active_sessions(self, place, connector, organization):
         from apps.connectors.models import Router
 
@@ -197,9 +205,7 @@ class TestExecutionSequence:
 
     def test_no_fk_dependency_on_voucher_or_access_plan(self):
         """Architectural regression check: HardLogoutEvent must never
-        gain a real FK to Voucher/AccessPlan/NetworkCycle/Session — this
-        introspects the actual model fields rather than trusting a
-        comment to stay true."""
+        gain a real FK to Voucher/AccessPlan/NetworkCycle/Session."""
         fk_targets = {
             f.related_model.__name__
             for f in HardLogoutEvent._meta.get_fields()

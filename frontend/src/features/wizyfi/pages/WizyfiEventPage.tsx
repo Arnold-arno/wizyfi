@@ -83,10 +83,20 @@ export function WizyfiEventPage() {
         </p>
       )}
       {(event.status === "PARTIAL" || event.status === "FAILED") && (
-        <p role="alert" className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--warning)]">
-          {event.status === "PARTIAL"
-            ? "Some routers were disconnected and some were not. See the failed targets below."
-            : "No router completed the disconnect. See the reasons below."}
+        <div role="alert" className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--warning)]">
+          <p>
+            {event.status === "PARTIAL"
+              ? "Some routers were disconnected and some were not. See the failed targets below."
+              : event.targetResults.length === 0
+                ? "Nobody was disconnected by this event."
+                : "No router completed the disconnect. See the reasons below."}
+          </p>
+          {event.failureReason && <p className="mt-1 text-[var(--foreground)]">{event.failureReason}</p>}
+        </div>
+      )}
+      {event.attemptCount > 1 && event.status === "RUNNING" && (
+        <p role="status" className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-secondary)]">
+          A worker stopped part-way and this event was resumed (attempt {event.attemptCount}). Routers already finished are not repeated.
         </p>
       )}
 

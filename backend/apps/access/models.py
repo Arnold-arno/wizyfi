@@ -166,9 +166,6 @@ class Session(BaseModel):
             models.Index(fields=["router", "status"]),
             models.Index(fields=["place", "status"]),
             models.Index(fields=["customer"]),
-            # Round 15: the expiry sweep scans (status, expires_at) every minute
-            # on what will be the largest table.
-            models.Index(fields=["status", "expires_at"]),
         ]
 
     def __str__(self):

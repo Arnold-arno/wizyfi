@@ -1,4 +1,6 @@
 # apps/access/serializers.py
+# CHANGED: Round 13 (SessionSerializer names), Round 14 (event failure_reason /
+# attempt_count). Everything else is unchanged.
 from rest_framework import serializers
 
 from .codes import format_masked
@@ -130,13 +132,28 @@ class NetworkCycleSerializer(serializers.ModelSerializer):
 
 
 class SessionSerializer(serializers.ModelSerializer):
+    """CHANGED (Round 13): readable names for the Live Connections table.
+    SessionViewSet already select_related()s these, so no extra queries."""
+
+    customer_label = serializers.SerializerMethodField()
+    place_name = serializers.CharField(source="place.name", read_only=True, default=None)
+    router_name = serializers.CharField(source="router.name", read_only=True, default=None)
+    access_plan_name = serializers.CharField(source="access_plan.name", read_only=True, default=None)
+
     class Meta:
         model = Session
         fields = [
-            "id", "customer", "device", "router", "place", "access_plan", "voucher",
+            "id", "customer", "customer_label", "device", "router", "router_name",
+            "place", "place_name", "access_plan", "access_plan_name", "voucher",
             "started_at", "expires_at", "ended_at", "status",
         ]
         read_only_fields = fields
+
+    def get_customer_label(self, obj):
+        # Name if known, else MAC. Phone is deliberately never exposed here:
+        # connections:view is not customers:view.
+        customer = obj.customer
+        return customer.full_name or customer.mac_address or "Unknown"
 
 
 class HardLogoutScheduleSerializer(serializers.Serializer):
@@ -166,6 +183,7 @@ class HardLogoutEventSerializer(serializers.ModelSerializer):
             "id", "place", "scope_type", "router_ids", "scheduled_at", "scheduled_timezone",
             "impact_estimate_connections", "created_by", "status", "started_at", "completed_at",
             "cancelled_at", "cancelled_by", "cancel_reason", "succeeded_count", "failed_count",
+            "attempt_count", "failure_reason",
             "target_results", "created_at",
         ]
         read_only_fields = fields

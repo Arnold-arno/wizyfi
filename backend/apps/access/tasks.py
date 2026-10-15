@@ -2,17 +2,22 @@
 #
 # Wizyfi (Hard Logout) dispatch. doc10 stages: Schedule -> *Dispatch* -> Start ...
 #
-# Design: a periodic sweep (Celery beat) finds SCHEDULED events whose time has
-# come and hands each to a worker task. The sweep is the source of truth, not
-# an ETA message in Redis, so the schedule survives broker loss, worker
-# restarts and browser closure (doc11 invariant; HL-03, HL-06).
+# A periodic sweep (Celery beat) finds events that need a worker and hands each
+# to execute_hard_logout_event_task. PostgreSQL, not Redis, is the source of
+# truth, so schedules survive broker loss, worker restarts and browser closure
+# (doc11; HL-03, HL-06).
 #
-# Safe to dispatch twice: execute_hard_logout_event() locks the row and treats
-# terminal events as a no-op (HL-09), so overlapping sweeps cannot double-run.
+# CHANGED (Round 14): the sweep now also picks up RUNNING events whose lease
+# has EXPIRED — that is a worker that died or stalled — so they resume.
+# A RUNNING event with a live lease is left alone.
+#
+# Dispatching the same event twice is safe: the claim step serialises on the
+# row, and a second caller sees a live lease or a terminal state and returns.
 
 import logging
 
 from celery import shared_task
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import HardLogoutEvent
@@ -30,8 +35,13 @@ def execute_hard_logout_event_task(event_id: str) -> str:
 
 @shared_task(name="wizyfi.dispatch_due_hard_logout_events")
 def dispatch_due_hard_logout_events() -> int:
+    now = timezone.now()
     due_ids = list(
-        HardLogoutEvent.objects.filter(status="SCHEDULED", scheduled_at__lte=timezone.now())
+        HardLogoutEvent.objects.filter(
+            Q(status="SCHEDULED", scheduled_at__lte=now)
+            | Q(status="RUNNING", lease_expires_at__lte=now)
+            | Q(status="RUNNING", lease_expires_at__isnull=True)
+        )
         .order_by("scheduled_at")
         .values_list("id", flat=True)
     )

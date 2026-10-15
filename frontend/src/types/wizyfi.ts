@@ -45,6 +45,10 @@ export interface HardLogoutEvent {
   cancelReason: string;
   succeededCount: number;
   failedCount: number;
+  /** Why the event couldn't run or was abandoned (e.g. missed window). Empty otherwise. */
+  failureReason: string;
+  /** How many times a worker claimed it; >1 means a worker stopped and it was resumed. */
+  attemptCount: number;
   targetResults: HardLogoutTarget[];
   createdAt: string;
 }

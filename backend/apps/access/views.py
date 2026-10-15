@@ -1,4 +1,15 @@
 # apps/access/views.py
+#
+# CHANGED, consolidating three rounds so there are no manual patches left:
+#   R12: schedule is idempotent (Idempotency-Key header) + events filterable.
+#   R13: sessions filterable by device, searchable, plan name select_related.
+#   R14: the temporary POST /hard-logout-events/{id}/execute/ action is GONE.
+#        It let anyone with hard_logout:schedule run a FUTURE event immediately,
+#        bypassing its scheduled time. Execution now belongs to the worker
+#        (apps.access.tasks) only — doc09: "Execute | internal worker command".
+import json
+
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework import mixins, viewsets
@@ -7,6 +18,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.common.exceptions import ConflictError
+from apps.common.idempotency import run_idempotent
 from apps.common.permissions import HasPermissionCode
 from apps.common.views import OrganizationScopedMixin
 from apps.connectors import services as connector_services
@@ -25,7 +37,6 @@ from .serializers import (
 from .services import (
     cancel_hard_logout_event,
     create_voucher_batch_idempotent,
-    execute_hard_logout_event,
     revoke_voucher,
     schedule_hard_logout_event,
 )
@@ -179,13 +190,14 @@ class SessionViewSet(OrganizationScopedMixin, mixins.ListModelMixin, mixins.Retr
         "list": "connections:view", "retrieve": "connections:view",
         "disconnect": "connections:disconnect",
     }
-    filterset_fields = ["status", "place", "router"]
+    filterset_fields = ["status", "place", "router", "device"]
+    search_fields = ["customer__mac_address", "customer__full_name"]
 
     def get_queryset(self):
         membership = self.require_active_membership(self.request)
         return Session.objects.filter(
             place__organization_id=membership.organization_id
-        ).select_related("customer", "router", "place").order_by("-started_at")
+        ).select_related("customer", "router", "place", "access_plan").order_by("-started_at")
 
     @action(detail=True, methods=["post"])
     def disconnect(self, request, pk=None):
@@ -218,7 +230,8 @@ class HardLogoutEventViewSet(
     """/api/v1/hard-logout-events/ — schedule, list, inspect, cancel.
     No update/destroy: a scheduled event is either cancelled (explicit
     action) or runs to a terminal state; it is never silently edited
-    (doc03 §10: 'Immutable event history')."""
+    (doc03 §10: 'Immutable event history'). There is deliberately NO execute
+    action: only the worker runs events (apps.access.tasks)."""
 
     serializer_class = HardLogoutEventSerializer
     permission_classes = [HasPermissionCode]
@@ -227,13 +240,8 @@ class HardLogoutEventViewSet(
         "retrieve": "hard_logout:view",
         "create": "hard_logout:schedule",
         "cancel": "hard_logout:cancel",
-        # TEMPORARY test-only trigger — see DELIVERY_NOTES: production
-        # dispatch is a Celery task calling execute_hard_logout_event()
-        # directly, not an HTTP action. Gated behind the same schedule
-        # permission for now so it isn't reachable by a lower-privilege
-        # role while Celery isn't wired yet.
-        "execute": "hard_logout:schedule",
     }
+    filterset_fields = ["status", "place"]
 
     def get_queryset(self):
         membership = self.require_active_membership(self.request)
@@ -252,30 +260,38 @@ class HardLogoutEventViewSet(
         except Place.DoesNotExist:
             raise ValidationError({"place": ["Place not found in this organization."]})
 
-        try:
-            event = schedule_hard_logout_event(
-                place=place,
-                scope_type=v["scope_type"],
-                router_ids=[str(r) for r in v.get("router_ids", [])],
-                scheduled_at=v["scheduled_at"],
-                scheduled_timezone=v["scheduled_timezone"],
-                created_by=request.user,
-                impact_estimate_connections=v.get("impact_estimate_connections"),
-            )
-        except ValueError as exc:
-            raise ValidationError({"detail": [str(exc)]})
+        def _create():
+            try:
+                event = schedule_hard_logout_event(
+                    place=place,
+                    scope_type=v["scope_type"],
+                    router_ids=[str(r) for r in v.get("router_ids", [])],
+                    scheduled_at=v["scheduled_at"],
+                    scheduled_timezone=v["scheduled_timezone"],
+                    created_by=request.user,
+                    impact_estimate_connections=v.get("impact_estimate_connections"),
+                )
+            except ValueError as exc:
+                raise ValidationError({"detail": [str(exc)]})
+            # The idempotency ledger stores JSON: round-trip UUIDs/datetimes.
+            body = json.loads(json.dumps(HardLogoutEventSerializer(event).data, cls=DjangoJSONEncoder))
+            return 201, body
 
-        return Response(HardLogoutEventSerializer(event).data, status=201)
+        key = request.headers.get("Idempotency-Key")
+        if key:
+            status_code, body = run_idempotent(
+                scope=f"hard_logout_schedule:{membership.organization_id}",
+                key=key,
+                request_data=dict(v),
+                compute_fn=_create,
+            )
+        else:  # optional for now so existing clients/tests keep working (doc09 says required)
+            status_code, body = _create()
+        return Response(body, status=status_code)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         event = self.get_object()
         reason = request.data.get("reason", "")
         event = cancel_hard_logout_event(event, actor=request.user, reason=reason)
-        return Response(HardLogoutEventSerializer(event).data)
-
-    @action(detail=True, methods=["post"])
-    def execute(self, request, pk=None):
-        event = self.get_object()
-        event = execute_hard_logout_event(event.id)
         return Response(HardLogoutEventSerializer(event).data)
