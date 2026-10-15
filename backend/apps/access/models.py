@@ -4,6 +4,11 @@
 # Field names chosen to match what the frontend package (built earlier,
 # from spec, before this backend existed) already assumes — see
 # DELIVERY_NOTES_ACCESS.md for the reconciliation this required.
+#
+# CHANGED (Round 14): HardLogoutEvent gains four execution-state fields
+# (attempt_count, lease_expires_at, resolved_router_ids, failure_reason) so a
+# crashed or stalled worker can be detected and the run resumed from durable
+# state. Nothing else in this file changed.
 
 from django.conf import settings
 from django.db import models
@@ -161,6 +166,9 @@ class Session(BaseModel):
             models.Index(fields=["router", "status"]),
             models.Index(fields=["place", "status"]),
             models.Index(fields=["customer"]),
+            # Round 15: the expiry sweep scans (status, expires_at) every minute
+            # on what will be the largest table.
+            models.Index(fields=["status", "expires_at"]),
         ]
 
     def __str__(self):
@@ -215,6 +223,27 @@ class HardLogoutEvent(BaseModel):
 
     succeeded_count = models.PositiveIntegerField(default=0)
     failed_count = models.PositiveIntegerField(default=0)
+
+    # --- Execution state (Round 14). All written by the executor only. ---
+    attempt_count = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Number of times a worker has claimed this event. Doubles as the fencing token: "
+                  "a worker whose attempt number is no longer current must stop writing.",
+    )
+    lease_expires_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="While RUNNING: the claiming worker's lease. A live lease blocks other workers; "
+                  "an expired one lets the next sweep take over and resume.",
+    )
+    resolved_router_ids = models.JSONField(
+        default=list, blank=True,
+        help_text="Router UUIDs frozen when the run started. For a RUNNING event this list is "
+                  "authoritative, so a resumed run never re-resolves a changed scope.",
+    )
+    failure_reason = models.CharField(
+        max_length=500, blank=True,
+        help_text="Operator-readable reason when the event could not run or was abandoned.",
+    )
 
     class Meta:
         db_table = "access_hardlogoutevent"

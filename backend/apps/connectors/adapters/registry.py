@@ -1,9 +1,11 @@
 # apps/connectors/adapters/registry.py
 from .base import RouterAdapter
 from .mikrotik import MikroTikAdapter
+from .wizyfi import WizyfiAdapter
 
 _ADAPTERS: dict[str, type[RouterAdapter]] = {
     MikroTikAdapter.vendor_code: MikroTikAdapter,
+    WizyfiAdapter.vendor_code: WizyfiAdapter,
 }
 
 

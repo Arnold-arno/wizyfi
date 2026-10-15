@@ -1,6 +1,6 @@
 // Persistent provider navigation (doc02 §3/§4). Each entry is gated by the
 // same permission code the backend enforces on that module's list endpoint.
-// IA order follows doc02 §3: ... Access Plans → Vouchers → Network Cycles ...
+// CHANGED (Round 12): the Hard Logout entry is now branded "Wizyfi".
 
 import {
   Activity,
@@ -22,7 +22,6 @@ export interface NavItem {
   to: string;
   icon: LucideIcon;
   permission: string;
-  /** doc02 §4: Hard Logout is labelled as an independent subsystem. */
   note?: string;
 }
 
@@ -38,10 +37,10 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Sales", to: "/app/sales", icon: TrendingUp, permission: "sales:view" },
   { label: "Transactions", to: "/app/transactions", icon: Receipt, permission: "transactions:view" },
   {
-    label: "Hard logout",
+    label: "Wizyfi",
     to: "/app/hard-logout",
     icon: Power,
     permission: "hard_logout:view",
-    note: "Independent system",
+    note: "Hard logout · independent system",
   },
 ];

@@ -1,10 +1,7 @@
-// Replaces src/app.tsx. NOTE the capital A: main.tsx imports "./App", and on
-// Linux/macOS-case-sensitive filesystems (and CI) "app.tsx" would not resolve.
-//
-// Routes follow doc04 §2 and the canonical navigation map. Modules whose pages
-// are NOT part of the uploaded tree use <ModulePlaceholder/>. Expectations_and_
-// workflow says Places/Dashboard etc. exist in your live repo — replace each
-// placeholder element with your real page when merging.
+// CHANGED (Round 12): Hard Logout placeholder replaced by the real Wizyfi
+// screens, and a public /wizyfi product page added. Everything else as Round 11.
+// Route family follows the canonical navigation map:
+//   /app/hard-logout, /schedule, /history, /:eventId
 
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AdminRoute } from "./components/auth/AdminRoute";
@@ -23,9 +20,14 @@ import { PlansPage } from "./features/admin/pages/PlansPage";
 import { LoginPage } from "./features/auth/LoginPage";
 import { OnboardingPage } from "./features/auth/OnboardingPage";
 import { DashboardPage } from "./features/dashboard/pages/DashboardPage";
+import { WizyfiProductPage } from "./features/public/WizyfiProductPage";
 import { SalesPage } from "./features/sales/pages/SalesPage";
 import { TransactionsPage } from "./features/transactions/pages/TransactionsPage";
 import { VouchersPage } from "./features/vouchers/pages/VouchersPage";
+import { WizyfiEventPage } from "./features/wizyfi/pages/WizyfiEventPage";
+import { WizyfiHistoryPage } from "./features/wizyfi/pages/WizyfiHistoryPage";
+import { WizyfiOverviewPage } from "./features/wizyfi/pages/WizyfiOverviewPage";
+import { WizyfiSchedulePage } from "./features/wizyfi/pages/WizyfiSchedulePage";
 import { useSessionStore } from "./state/sessionStore";
 
 function ModulePlaceholder({ title }: { title: string }) {
@@ -37,7 +39,6 @@ function ModulePlaceholder({ title }: { title: string }) {
   );
 }
 
-/** "/" — decides the landing page once the profile has loaded. */
 function RootRedirect() {
   const user = useSessionStore((s) => s.user);
   const hasOrg = useSessionStore((s) => s.memberships.length > 0);
@@ -49,6 +50,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/wizyfi" element={<WizyfiProductPage />} />
 
       <Route element={<RequireAuth />}>
         <Route index element={<RootRedirect />} />
@@ -63,7 +65,11 @@ export default function App() {
           <Route path="connections/*" element={<ModulePlaceholder title="Live connections" />} />
           <Route path="users/*" element={<ModulePlaceholder title="Users" />} />
           <Route path="network-cycles/*" element={<ModulePlaceholder title="Network cycles" />} />
-          <Route path="hard-logout/*" element={<ModulePlaceholder title="Hard logout" />} />
+
+          <Route path="hard-logout" element={<RequirePermission code="hard_logout:view"><WizyfiOverviewPage /></RequirePermission>} />
+          <Route path="hard-logout/schedule" element={<RequirePermission code="hard_logout:schedule"><WizyfiSchedulePage /></RequirePermission>} />
+          <Route path="hard-logout/history" element={<RequirePermission code="hard_logout:view"><WizyfiHistoryPage /></RequirePermission>} />
+          <Route path="hard-logout/:eventId" element={<RequirePermission code="hard_logout:view"><WizyfiEventPage /></RequirePermission>} />
 
           <Route path="access-plans" element={<RequirePermission code="access_plans:view"><AccessPlansPage /></RequirePermission>} />
           <Route path="access-plans/new" element={<RequirePermission code="access_plans:create"><PlanEditorPage /></RequirePermission>} />
