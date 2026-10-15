@@ -4,9 +4,11 @@
 // Honesty rules (doc00 §4, doc03 §6):
 //  * polls every 15 s and shows "Updated hh:mm"; a failed refresh keeps the
 //    last data but says so — stale data is never presented as live;
-//  * the backend does not yet expire sessions automatically, so a session
-//    still ACTIVE past its expiry is labelled "Past expiry" instead of
-//    showing a fake countdown.
+//  * a background sweep ends sessions whose time is up (about once a minute) and
+//    only marks them Expired once the router confirms. A session still ACTIVE
+//    past its expiry is therefore either waiting for the next sweep or sitting on
+//    a router that hasn't confirmed — it is labelled "Past expiry" instead of
+//    showing a fake countdown or being hidden.
 
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";

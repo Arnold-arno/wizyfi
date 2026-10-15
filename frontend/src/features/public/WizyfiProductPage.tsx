@@ -7,7 +7,7 @@ import { ThemeToggle } from "../../components/ui/ThemeToggle";
 import { btnPrimary, btnSecondary } from "../../components/ui/styles";
 
 const POINTS = [
-  { title: "Exact-time hard logout", body: "Pick the place or routers, the date, time and timezone. Wizyfi disconnects active users at that moment, even if nobody is logged in." },
+  { title: "Exact-time hard logout", body: "Pick the place or routers, the date, time and timezone. Wizyfi disconnects everyone in scope at that moment — even if nobody is logged in to the dashboard — and they log in again to keep using the network." },
   { title: "Safe by design", body: "Explicit scope, a plain-language consequence, and a review step before anything is scheduled. Nothing else in the platform can trigger it." },
   { title: "Honest results", body: "Per-router outcomes, partial failures shown as partial, and a permanent history of every event." },
   { title: "Part of Wizyfi Bridge", body: "Use Wizyfi alongside MikroTik and other vendors under one dashboard, one login and one audit trail." },

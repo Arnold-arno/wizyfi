@@ -7,6 +7,7 @@
 # truth, so schedules survive broker loss, worker restarts and browser closure
 # (doc11; HL-03, HL-06).
 #
+# CHANGED (Round 15): adds the session expiry sweep task.
 # CHANGED (Round 14): the sweep now also picks up RUNNING events whose lease
 # has EXPIRED — that is a worker that died or stalled — so they resume.
 # A RUNNING event with a live lease is left alone.
@@ -21,7 +22,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .models import HardLogoutEvent
-from .services import execute_hard_logout_event
+from .services import execute_hard_logout_event, expire_due_sessions
 
 logger = logging.getLogger(__name__)
 
@@ -48,3 +49,17 @@ def dispatch_due_hard_logout_events() -> int:
     for event_id in due_ids:
         execute_hard_logout_event_task.delay(str(event_id))
     return len(due_ids)
+
+
+@shared_task(name="wizyfi.expire_due_sessions")
+def expire_due_sessions_task() -> dict:
+    """Beat runs this every minute. Idempotent and batch-limited: if more than
+    one batch is due, the next run continues where this one stopped."""
+    result = expire_due_sessions()
+    if result.examined:
+        logger.info("session_expiry.swept", extra={
+            "examined": result.examined, "expired": result.expired,
+            "unconfirmed": result.unconfirmed, "pending": result.pending,
+        })
+    return {"examined": result.examined, "expired": result.expired,
+            "unconfirmed": result.unconfirmed, "pending": result.pending}

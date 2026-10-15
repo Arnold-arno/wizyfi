@@ -223,8 +223,8 @@ export function WizyfiSchedulePage() {
             <div className="rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] p-4 text-[var(--foreground)]">
               <p className="font-medium">What users will experience</p>
               <p className="mt-1 text-[var(--foreground-secondary)]">
-                Every affected user is disconnected at the scheduled time and must complete a fresh sign-in or access flow
-                to get back online.
+                Everyone in scope is disconnected at the same moment and must log in again to keep using the network.
+                Anyone who got in with a single-use voucher will need a new voucher — a redeemed voucher can't be used twice.
               </p>
             </div>
           </div>
@@ -248,7 +248,7 @@ export function WizyfiSchedulePage() {
                 {estimate.data !== undefined ? `${estimate.data} connection(s) (estimate)` : "Not available"}
               </dd>
               <dt className="text-[var(--foreground-secondary)]">Consequence</dt>
-              <dd className="text-[var(--foreground)]">Users must sign in again.</dd>
+              <dd className="text-[var(--foreground)]">Everyone logs in again; single-use vouchers need replacing.</dd>
             </dl>
 
             {needsTyped && (

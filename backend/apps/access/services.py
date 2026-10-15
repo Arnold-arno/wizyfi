@@ -40,6 +40,10 @@ logger = logging.getLogger(__name__)
 
 MAX_BATCH_SIZE = 5000
 
+# Sessions that currently have network access. EXPIRING is "near expiry, still
+# connected" (doc03 §5); anything that ends access must treat it like ACTIVE.
+LIVE_SESSION_STATUSES = ("ACTIVE", "EXPIRING")
+
 
 @transaction.atomic
 def create_voucher_batch(
@@ -529,7 +533,9 @@ def _renew_lease(event_id, attempt: int) -> bool:
 def _disconnect_router_sessions(event: HardLogoutEvent, router: Router, attempt: int) -> RouterOutcome | None:
     """Adapter calls happen here, outside any transaction. Each success is
     committed immediately. Returns None if fenced out mid-way."""
-    session_ids = list(Session.objects.filter(router=router, status="ACTIVE").values_list("id", flat=True))
+    session_ids = list(
+        Session.objects.filter(router=router, status__in=LIVE_SESSION_STATUSES).values_list("id", flat=True)
+    )
     failed = 0
     first_code = ""
 
@@ -547,7 +553,7 @@ def _disconnect_router_sessions(event: HardLogoutEvent, router: Router, attempt:
         if outcome.success:
             now = timezone.now()
             # Conditional update: idempotent if someone disconnected it meanwhile.
-            Session.objects.filter(id=sid, status="ACTIVE").update(
+            Session.objects.filter(id=sid, status__in=LIVE_SESSION_STATUSES).update(
                 status="DISCONNECTED", ended_at=now, updated_at=now
             )
             continue
@@ -648,3 +654,108 @@ def execute_hard_logout_event(event_id) -> HardLogoutEvent:
     if completed:
         _finalize_attempt(event_id, attempt)
     return HardLogoutEvent.objects.get(id=event_id)
+
+
+# ---------------------------------------------------------------------------
+# Session expiry sweep (Round 15).
+#
+# Problem: nothing ever moved a session out of ACTIVE when its time ran out, so
+# past-expiry sessions stayed "active" forever and the dashboard overcounted.
+#
+# Semantics follow doc03 §5: EXPIRED = "access period ended" (DISCONNECTED =
+# "session was terminated", which is what a manual disconnect or a Wizyfi hard
+# logout produces). Those are different facts and stay different statuses.
+#
+# Rules:
+#  * Ending access is a NETWORK action, so the router is asked to disconnect
+#    (idempotent: already gone counts as success) and a session is marked
+#    EXPIRED only once the router confirms. Until then it stays ACTIVE, which
+#    is the honest answer: we cannot confirm the user is off the network.
+#  * No network I/O inside a transaction. The status change is one conditional
+#    UPDATE, so a session that a hard logout / manual disconnect already ended
+#    is never overwritten, and overlapping sweeps are harmless.
+#  * An unreachable router is tried ONCE per sweep, not once per session.
+#  * Grace: a session still unconfirmed this long past its expiry is marked
+#    EXPIRED anyway and audited as `session.expired_unconfirmed`, so a dead
+#    router can't leave ghost "active" sessions forever.
+#  * Routine expiries are NOT audited one by one (every session on the platform
+#    would write a row); only the anomalous forced case is.
+#  * ended_at is set to expires_at: when access ended, not when we noticed.
+# ---------------------------------------------------------------------------
+
+SESSION_EXPIRY_GRACE_SECONDS_DEFAULT = 3600
+SESSION_EXPIRY_BATCH_DEFAULT = 500
+
+
+@dataclass
+class ExpiryResult:
+    examined: int = 0
+    expired: int = 0       # confirmed by the router, or already ended by someone else
+    unconfirmed: int = 0   # forced past the grace period without router confirmation
+    pending: int = 0       # overdue, router didn't confirm, still inside the grace period
+
+
+def expire_due_sessions(*, limit: int | None = None) -> ExpiryResult:
+    now = timezone.now()
+    limit = limit or getattr(settings, "SESSION_EXPIRY_BATCH_SIZE", SESSION_EXPIRY_BATCH_DEFAULT)
+    grace = timedelta(seconds=getattr(settings, "SESSION_EXPIRY_GRACE_SECONDS", SESSION_EXPIRY_GRACE_SECONDS_DEFAULT))
+
+    due = list(
+        Session.objects.filter(
+            status__in=LIVE_SESSION_STATUSES, expires_at__isnull=False, expires_at__lte=now
+        )
+        .select_related("router__connector", "place")
+        .order_by("expires_at")[:limit]
+    )
+
+    result = ExpiryResult(examined=len(due))
+    unreachable_routers: set = set()
+
+    for session in due:
+        confirmed = False
+        failure_code = ""
+
+        if session.router_id in unreachable_routers:
+            failure_code = "NETWORK_UNAVAILABLE"  # already failed this sweep; don't hammer it
+        else:
+            try:
+                outcome = connector_services.disconnect_session(session.router, str(session.id))
+            except Exception as exc:  # an adapter bug must not stop the rest of the sweep
+                logger.exception("session_expiry.adapter_exception", extra={"session_id": str(session.id)})
+                outcome = CommandOutcome(success=False, error_code=_classify(exc))
+            if outcome.success:
+                confirmed = True
+            else:
+                failure_code = outcome.error_code or "NETWORK_UNAVAILABLE"
+                if failure_code in ROUTER_LEVEL_CODES:
+                    unreachable_routers.add(session.router_id)
+
+        overdue = now - session.expires_at
+        if not confirmed and overdue < grace:
+            result.pending += 1
+            continue
+
+        changed = Session.objects.filter(id=session.id, status__in=LIVE_SESSION_STATUSES).update(
+            status="EXPIRED", ended_at=session.expires_at, updated_at=now
+        )
+        if changed != 1:
+            continue  # ended by a hard logout / manual disconnect meanwhile: leave that status alone
+
+        if confirmed:
+            result.expired += 1
+        else:
+            result.unconfirmed += 1
+            record_event(
+                organization_id=session.place.organization_id,
+                action="session.expired_unconfirmed",
+                resource_type="Session",
+                resource_id=session.id,
+                actor_type=ActorType.SYSTEM,
+                metadata={
+                    "router_id": str(session.router_id),
+                    "overdue_seconds": int(overdue.total_seconds()),
+                    "last_error_code": failure_code,
+                },
+            )
+
+    return result
