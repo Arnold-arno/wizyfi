@@ -1,6 +1,8 @@
 # apps/places/views.py
+# CHANGED (Round 13): get_queryset annotates router/connection counts. Nothing else.
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
+from django.db.models import Count, Q
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied
 
@@ -31,7 +33,17 @@ class PlaceViewSet(OrganizationScopedMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         membership = self.require_active_membership(self.request)
-        return Place.objects.filter(organization_id=membership.organization_id).order_by("name")
+        return (
+            Place.objects.filter(organization_id=membership.organization_id)
+            # distinct=True on both: two joins would otherwise multiply rows.
+            .annotate(
+                router_count=Count("routers", distinct=True),
+                active_connection_count=Count(
+                    "sessions", filter=Q(sessions__status="ACTIVE"), distinct=True
+                ),
+            )
+            .order_by("name")
+        )
 
     def perform_create(self, serializer):
         membership = self.require_active_membership(self.request)
@@ -39,12 +51,7 @@ class PlaceViewSet(OrganizationScopedMixin, viewsets.ModelViewSet):
         if membership.organization.status != "ACTIVE":
             raise PermissionDenied("This organization is suspended.")
 
-        # Plan-limit enforcement (Expectations_and_workflow: "Wired into
-        # Place creation"), closing out the TODO left in Round 1 before
-        # apps.platform_admin's Plan/OrganizationSubscription existed.
-        # No subscription at all = unlimited/grandfathered, a deliberate
-        # default so organizations created before billing existed (or in
-        # dev/test) aren't unexpectedly blocked.
+        # Plan-limit enforcement. No subscription = unlimited/grandfathered.
         try:
             max_places = membership.organization.subscription.plan.max_places
         except ObjectDoesNotExist:
@@ -61,8 +68,5 @@ class PlaceViewSet(OrganizationScopedMixin, viewsets.ModelViewSet):
         try:
             serializer.save(organization_id=membership.organization_id, status="SETUP")
         except IntegrityError:
-            # The unique_place_name_per_org constraint is enforced at the
-            # DB layer (Meta.constraints, not unique_together), so DRF's
-            # automatic serializer validators never see it — without this
-            # catch it surfaces as an unhandled 500.
+            # unique_place_name_per_org is a DB constraint DRF validators never see.
             raise ConflictError("A place with this name already exists in this organization.")

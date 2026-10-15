@@ -1,5 +1,6 @@
-// CHANGED (Round 12): Hard Logout placeholder replaced by the real Wizyfi
-// screens, and a public /wizyfi product page added. Everything else as Round 11.
+// CHANGED (Round 13): Places, Devices and Live connections are real pages now.
+// (Round 12: Wizyfi screens + public /wizyfi page.) Users and Network cycles
+// are still placeholders.
 // Route family follows the canonical navigation map:
 //   /app/hard-logout, /schedule, /history, /:eventId
 
@@ -19,7 +20,12 @@ import { AgentsPage } from "./features/admin/pages/AgentsPage";
 import { PlansPage } from "./features/admin/pages/PlansPage";
 import { LoginPage } from "./features/auth/LoginPage";
 import { OnboardingPage } from "./features/auth/OnboardingPage";
+import { ConnectionsPage } from "./features/connections/pages/ConnectionsPage";
 import { DashboardPage } from "./features/dashboard/pages/DashboardPage";
+import { DevicesPage } from "./features/devices/pages/DevicesPage";
+import { PlaceDetailPage } from "./features/places/pages/PlaceDetailPage";
+import { PlaceFormPage } from "./features/places/pages/PlaceFormPage";
+import { PlacesPage } from "./features/places/pages/PlacesPage";
 import { WizyfiProductPage } from "./features/public/WizyfiProductPage";
 import { SalesPage } from "./features/sales/pages/SalesPage";
 import { TransactionsPage } from "./features/transactions/pages/TransactionsPage";
@@ -60,9 +66,11 @@ export default function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
 
-          <Route path="places/*" element={<ModulePlaceholder title="Places" />} />
-          <Route path="devices/*" element={<ModulePlaceholder title="Devices" />} />
-          <Route path="connections/*" element={<ModulePlaceholder title="Live connections" />} />
+          <Route path="places" element={<RequirePermission code="places:view"><PlacesPage /></RequirePermission>} />
+          <Route path="places/new" element={<RequirePermission code="places:create"><PlaceFormPage /></RequirePermission>} />
+          <Route path="places/:placeId" element={<RequirePermission code="places:view"><PlaceDetailPage /></RequirePermission>} />
+          <Route path="devices" element={<RequirePermission code="devices:view"><DevicesPage /></RequirePermission>} />
+          <Route path="connections" element={<RequirePermission code="connections:view"><ConnectionsPage /></RequirePermission>} />
           <Route path="users/*" element={<ModulePlaceholder title="Users" />} />
           <Route path="network-cycles/*" element={<ModulePlaceholder title="Network cycles" />} />
 
