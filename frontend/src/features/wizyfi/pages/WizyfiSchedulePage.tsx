@@ -220,6 +220,9 @@ export function WizyfiSchedulePage() {
             <p className="text-xs text-[var(--foreground-muted)]">
               This is an estimate. Connections change between now and the scheduled time.
             </p>
+            <p className="text-xs text-[var(--foreground-muted)]">
+              Customers on plans that last until the next reset, and who connect before this time, will end exactly here.
+            </p>
             <div className="rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] p-4 text-[var(--foreground)]">
               <p className="font-medium">What users will experience</p>
               <p className="mt-1 text-[var(--foreground-secondary)]">

@@ -4,6 +4,8 @@
 // the portal." This renders using the same visual language as the
 // Captive Portal's Access screen (doc04 §11) — plan name, price,
 // duration and one key limit — so operators see what customers will see.
+//
+// CHANGED (Round 16): "until the next reset" plans say so, as the portal does.
 
 import type { AccessPlan } from "../../../types/accessPlan";
 
@@ -12,6 +14,8 @@ export function PlanPreview({ plan }: { plan: AccessPlan }) {
     ? `${(plan.quota.dataCapMb / 1024).toFixed(1)} GB included`
     : "Unlimited data";
 
+  const untilReset = plan.validityMode === "UNTIL_NEXT_RESET";
+
   return (
     <div className="mx-auto w-full max-w-xs rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-5 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-semibold text-[var(--foreground)]">{plan.name || "Plan name"}</p>
@@ -19,9 +23,11 @@ export function PlanPreview({ plan }: { plan: AccessPlan }) {
         {plan.currency} {plan.price.toFixed(2)}
       </p>
       <p className="text-xs text-[var(--foreground-secondary)]">
-        {plan.durationMinutes >= 1440
-          ? `${plan.durationMinutes / 1440} day access`
-          : `${plan.durationMinutes} minute access`}
+        {untilReset
+          ? "Access until the next network reset"
+          : plan.durationMinutes >= 1440
+            ? `${plan.durationMinutes / 1440} day access`
+            : `${plan.durationMinutes} minute access`}
       </p>
       <p className="mt-3 text-xs text-[var(--foreground-secondary)]">{keyLimit}</p>
       <button

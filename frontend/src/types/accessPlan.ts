@@ -4,8 +4,15 @@
 // Field set matches doc 08 (Data Architecture) — AccessPlan entity:
 //   name, duration, quota, price, status
 // and doc 09 (API Specification) endpoint inventory for /access-plans.
+//
+// CHANGED (Round 16): validityMode — how a session's end time is set.
 
 export type AccessPlanStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+
+/** DURATION: ends durationMinutes after the customer connects.
+ *  UNTIL_NEXT_RESET: ends at the next scheduled Wizyfi reset covering their router;
+ *  durationMinutes is then only the fallback if no reset is scheduled. */
+export type AccessPlanValidityMode = "DURATION" | "UNTIL_NEXT_RESET";
 
 /** Quota / limits block — kept separate from pricing per doc04 editor step order. */
 export interface AccessPlanLimits {
@@ -28,6 +35,7 @@ export interface AccessPlan {
   price: number;
   currency: string; // ISO 4217, e.g. "UGX", "USD"
   durationMinutes: number;
+  validityMode: AccessPlanValidityMode;
   quota: AccessPlanLimits;
   availability: AccessPlanAvailability;
   status: AccessPlanStatus;
@@ -42,6 +50,7 @@ export interface AccessPlanInput {
   price: number;
   currency: string;
   durationMinutes: number;
+  validityMode: AccessPlanValidityMode;
   quota: AccessPlanLimits;
   availability: AccessPlanAvailability;
   status: AccessPlanStatus;

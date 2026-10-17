@@ -157,7 +157,7 @@ function CancelDialog({ id, onClose }: { id: string; onClose: () => void }) {
   return (
     <Dialog
       title="Cancel this hard logout?"
-      description="No one will be disconnected by this event. This can't be undone — schedule a new one if needed."
+      description="No one will be disconnected by this event. Customers whose access was set to end at this reset move to the next scheduled reset, or get a fresh full fallback duration if none is scheduled. This can't be undone."
       onClose={onClose}
       footer={
         <>

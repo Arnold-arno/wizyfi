@@ -3,6 +3,8 @@
 // Content per doc04 §7 Plan list: name, price, duration, limits, status.
 // Desktop = dense table (doc05 §6); mobile transforms rows into cards
 // preserving identity/status/time/action (doc02 §8, doc04 §13).
+//
+// CHANGED (Round 16): the Duration column shows "Until next reset" for those plans.
 
 import type { AccessPlan } from "../../../types/accessPlan";
 import { PlanStatusBadge } from "./PlanStatusBadge";
@@ -17,6 +19,18 @@ function formatDuration(minutes: number): string {
   if (minutes % 1440 === 0) return `${minutes / 1440}d`;
   if (minutes % 60 === 0) return `${minutes / 60}h`;
   return `${minutes}m`;
+}
+
+function formatValidity(plan: AccessPlan): string {
+  return plan.validityMode === "UNTIL_NEXT_RESET"
+    ? "Until next reset"
+    : formatDuration(plan.durationMinutes);
+}
+
+function validityTitle(plan: AccessPlan): string | undefined {
+  return plan.validityMode === "UNTIL_NEXT_RESET"
+    ? `Ends at the next scheduled Wizyfi reset. If none is scheduled it lasts ${formatDuration(plan.durationMinutes)}.`
+    : undefined;
 }
 
 function formatLimits(plan: AccessPlan): string {
@@ -55,7 +69,9 @@ export function PlanTable({ plans, canEdit, onOpen }: PlanTableProps) {
                 <td className="px-4 py-3 tabular-nums">
                   {plan.currency} {plan.price.toFixed(2)}
                 </td>
-                <td className="px-4 py-3 tabular-nums">{formatDuration(plan.durationMinutes)}</td>
+                <td className="px-4 py-3 tabular-nums" title={validityTitle(plan)}>
+                  {formatValidity(plan)}
+                </td>
                 <td className="px-4 py-3 text-[var(--foreground-secondary)]">{formatLimits(plan)}</td>
                 <td className="px-4 py-3">
                   <PlanStatusBadge status={plan.status} />
@@ -92,7 +108,7 @@ export function PlanTable({ plans, canEdit, onOpen }: PlanTableProps) {
                 <span>
                   {plan.currency} {plan.price.toFixed(2)}
                 </span>
-                <span>{formatDuration(plan.durationMinutes)}</span>
+                <span>{formatValidity(plan)}</span>
                 <span>{formatLimits(plan)}</span>
               </div>
             </button>

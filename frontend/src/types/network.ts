@@ -82,4 +82,6 @@ export interface Session {
   expiresAt: string | null;
   endedAt: string | null;
   status: SessionStatus;
+  /** True when the end time was taken from a scheduled Wizyfi reset. */
+  endsWithReset: boolean;
 }

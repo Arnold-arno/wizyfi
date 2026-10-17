@@ -1,6 +1,7 @@
 // src/features/access/pages/PlanEditorPage.tsx
 //
 // Routes: /app/access-plans/new and /app/access-plans/:id (edit).
+// CHANGED (Round 16): carries validityMode through when editing.
 
 import { useNavigate, useParams } from "react-router-dom";
 import { usePlan } from "../hooks/usePlan";
@@ -70,6 +71,7 @@ export function PlanEditorPage() {
                 price: existingPlan.price,
                 currency: existingPlan.currency,
                 durationMinutes: existingPlan.durationMinutes,
+                validityMode: existingPlan.validityMode,
                 quota: existingPlan.quota,
                 availability: existingPlan.availability,
                 status: existingPlan.status,

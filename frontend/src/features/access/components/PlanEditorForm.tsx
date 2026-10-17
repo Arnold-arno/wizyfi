@@ -4,9 +4,16 @@
 // limits → availability → review. Per doc05 §7 form contract: labels
 // always visible, inline validation, submit state prevents duplicate
 // requests, destructive/network mutation reviewed explicitly before commit.
+//
+// CHANGED (Round 16): "When does access end?" — after a duration, or at the next
+// Wizyfi reset (duration is then only the fallback when no reset is scheduled).
 
 import { useMemo, useState } from "react";
-import type { AccessPlanInput, AccessPlanStatus } from "../../../types/accessPlan";
+import type {
+  AccessPlanInput,
+  AccessPlanStatus,
+  AccessPlanValidityMode,
+} from "../../../types/accessPlan";
 import { PlanPreview } from "./PlanPreview";
 
 type Step = "basics" | "pricing" | "limits" | "availability" | "review";
@@ -25,6 +32,7 @@ const EMPTY: AccessPlanInput = {
   price: 0,
   currency: "UGX",
   durationMinutes: 60,
+  validityMode: "DURATION",
   quota: { dataCapMb: null, maxConcurrentDevices: 1 },
   availability: { isPubliclyListed: true },
   status: "DRAFT",
@@ -58,6 +66,8 @@ export function PlanEditorForm({
 
   const goNext = () => canGoNext && setStep(STEPS[Math.min(stepIndex + 1, STEPS.length - 1)]);
   const goBack = () => setStep(STEPS[Math.max(stepIndex - 1, 0)]);
+
+  const untilReset = value.validityMode === "UNTIL_NEXT_RESET";
 
   const previewPlan = useMemo(
     () => ({
@@ -134,7 +144,15 @@ export function PlanEditorForm({
                 className={inputClass}
               />
             </Field>
-            <Field label="Duration (minutes)" error={errorFor("durationMinutes")}>
+            <Field
+              label={untilReset ? "Fallback duration (minutes)" : "Duration (minutes)"}
+              hint={
+                untilReset
+                  ? "Used only if no Wizyfi reset is scheduled when the customer connects."
+                  : undefined
+              }
+              error={errorFor("durationMinutes")}
+            >
               <input
                 type="number"
                 min={1}
@@ -145,6 +163,28 @@ export function PlanEditorForm({
                 className={inputClass}
               />
             </Field>
+            <div className="sm:col-span-3">
+              <Field
+                label="When does access end?"
+                hint={
+                  untilReset
+                    ? "Everyone who connects before the next scheduled reset is disconnected together at that time, and needs a new voucher or login to continue."
+                    : "Each customer's access ends this long after they connect."
+                }
+                error={errorFor("validityMode")}
+              >
+                <select
+                  value={value.validityMode}
+                  onChange={(e) =>
+                    setValue({ ...value, validityMode: e.target.value as AccessPlanValidityMode })
+                  }
+                  className={inputClass}
+                >
+                  <option value="DURATION">After the duration</option>
+                  <option value="UNTIL_NEXT_RESET">At the next Wizyfi reset</option>
+                </select>
+              </Field>
+            </div>
           </div>
         )}
 
@@ -279,16 +319,19 @@ const inputClass =
 function Field({
   label,
   error,
+  hint,
   children,
 }: {
   label: string;
   error?: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="flex flex-col gap-1.5 text-sm">
       <span className="font-medium text-[var(--foreground)]">{label}</span>
       {children}
+      {hint && !error && <span className="text-xs text-[var(--foreground-muted)]">{hint}</span>}
       {error && <span className="text-xs text-[var(--danger)]">{error}</span>}
     </label>
   );

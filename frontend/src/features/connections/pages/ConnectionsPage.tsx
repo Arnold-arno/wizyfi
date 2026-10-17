@@ -46,7 +46,9 @@ function remaining(s: Session, now: number): string {
   if (!LIVE.has(s.status)) return "—";
   if (!s.expiresAt) return "No limit";
   const ms = new Date(s.expiresAt).getTime() - now;
-  return ms <= 0 ? "Past expiry" : formatRemaining(ms);
+  if (ms <= 0) return "Past expiry";
+  // Sessions that end with a Wizyfi reset are cut together at that moment.
+  return s.endsWithReset ? `${formatRemaining(ms)} · at reset` : formatRemaining(ms);
 }
 
 export function ConnectionsPage() {
