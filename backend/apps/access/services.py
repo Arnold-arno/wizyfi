@@ -226,17 +226,74 @@ def redeem_voucher(*, organization_id, code: str, mac_address: str) -> Voucher:
     return voucher
 
 
+RESET_LOOKAHEAD = 50
+
+
+def next_reset_for(place, router=None, *, after=None, exclude_ids=()):
+    """The earliest still-SCHEDULED Wizyfi reset after `after` that would cut
+    `router` (or, with no router, one covering the whole place).
+
+    Read-only on purpose: plans and sessions may READ the reset schedule but
+    never create or trigger a reset (doc00 §4). The scope check is done in Python
+    over a small, time-ordered window so it behaves identically on PostgreSQL
+    and SQLite (JSON `contains` is not portable)."""
+    after = after or timezone.now()
+    candidates = (
+        HardLogoutEvent.objects.filter(place=place, status="SCHEDULED", scheduled_at__gt=after)
+        .exclude(id__in=list(exclude_ids))
+        .order_by("scheduled_at")[:RESET_LOOKAHEAD]
+    )
+    router_id = str(router.id) if router is not None else None
+    for event in candidates:
+        if event.scope_type == "PLACE":
+            # A place-wide reset skips DISABLED routers when it runs.
+            if router is None or router.status != "DISABLED":
+                return event
+        elif router_id is not None and router_id in event.router_ids:
+            return event
+    return None
+
+
+def _lock_next_reset(place, router, now):
+    """Pick the next reset AND lock its row, then re-check it. cancel_hard_logout_event
+    locks the same row, so a login racing a cancel either sees the cancel (and picks
+    the following reset) or finishes first (and the cancel then moves the session).
+    Must run inside a transaction."""
+    skipped: set = set()
+    for _ in range(3):
+        candidate = next_reset_for(place, router, after=now, exclude_ids=skipped)
+        if candidate is None:
+            return None
+        locked = HardLogoutEvent.objects.select_for_update().get(id=candidate.id)
+        if locked.status == "SCHEDULED" and locked.scheduled_at > now:
+            return locked
+        skipped.add(candidate.id)
+    return None
+
+
 @transaction.atomic
 def start_session(*, customer: Customer, router: Router, place, voucher: Voucher = None,
                    access_plan: AccessPlan = None, device=None) -> Session:
     """Grants timed network access after a successful redemption/auth.
     Deliberately a separate step from redeem_voucher: redemption proves
-    entitlement, this is what actually starts the clock."""
+    entitlement, this is what actually starts the clock.
+
+    Round 16: a plan with validity_mode UNTIL_NEXT_RESET ends at the next
+    scheduled Wizyfi reset covering this router, so everyone who logged in since
+    the last reset is cut together. With no reset scheduled it falls back to
+    duration_minutes — access never becomes unlimited by accident."""
 
     plan = access_plan or (voucher.plan if voucher else None)
-    expires_at = (
-        timezone.now() + timezone.timedelta(minutes=plan.duration_minutes) if plan else None
-    )
+    now = timezone.now()
+    expires_at = None
+    bound_reset_event_id = None
+    if plan is not None:
+        if plan.validity_mode == "UNTIL_NEXT_RESET":
+            reset = _lock_next_reset(place, router, now)
+            if reset is not None:
+                expires_at, bound_reset_event_id = reset.scheduled_at, reset.id
+        if expires_at is None:
+            expires_at = now + timedelta(minutes=plan.duration_minutes)
     return Session.objects.create(
         customer=customer,
         device=device,
@@ -244,8 +301,9 @@ def start_session(*, customer: Customer, router: Router, place, voucher: Voucher
         place=place,
         access_plan=plan,
         voucher=voucher,
-        started_at=timezone.now(),
+        started_at=now,
         expires_at=expires_at,
+        bound_reset_event_id=bound_reset_event_id,
         status="ACTIVE",
     )
 
@@ -313,7 +371,44 @@ def cancel_hard_logout_event(event: HardLogoutEvent, *, actor, reason: str = "")
         actor_type=ActorType.STAFF,
         metadata={"reason": reason},
     )
+    moved = _extend_sessions_after_cancel(event, timezone.now())
+    if moved:
+        record_event(
+            organization_id=event.place.organization_id,
+            action="hard_logout.sessions_extended",
+            resource_type="HardLogoutEvent",
+            resource_id=event.id,
+            actor=actor,
+            actor_type=ActorType.STAFF if actor else ActorType.SYSTEM,
+            metadata={"sessions": moved},
+        )
     return event
+
+
+def _extend_sessions_after_cancel(event: HardLogoutEvent, now) -> int:
+    """Sessions whose end time was set to THIS reset must not be cut by a reset
+    that no longer happens (cancelling promises that nobody is disconnected).
+    Each moves to the next covering reset, or, if none is scheduled, gets a fresh
+    full fallback window of duration_minutes from now (not a surprise instant cut).
+    Runs inside cancel's transaction, which already holds the event row lock."""
+    sessions = list(
+        Session.objects.filter(bound_reset_event_id=event.id, status__in=LIVE_SESSION_STATUSES)
+        .select_related("router", "access_plan")
+    )
+    groups: dict = {}
+    for s in sessions:
+        groups.setdefault((s.router_id, s.access_plan_id), []).append(s)
+    for members in groups.values():
+        first = members[0]
+        following = next_reset_for(event.place, first.router, after=now, exclude_ids=(event.id,))
+        if following is not None:
+            expires_at, bound = following.scheduled_at, following.id
+        else:
+            expires_at, bound = now + timedelta(minutes=first.access_plan.duration_minutes), None
+        Session.objects.filter(id__in=[m.id for m in members]).update(
+            expires_at=expires_at, bound_reset_event_id=bound, updated_at=now
+        )
+    return len(sessions)
 
 
 # ---------------------------------------------------------------------------
@@ -693,6 +788,7 @@ class ExpiryResult:
     expired: int = 0       # confirmed by the router, or already ended by someone else
     unconfirmed: int = 0   # forced past the grace period without router confirmation
     pending: int = 0       # overdue, router didn't confirm, still inside the grace period
+    deferred: int = 0      # ends at a Wizyfi reset that hasn't finished yet: the reset does the disconnecting
 
 
 def expire_due_sessions(*, limit: int | None = None) -> ExpiryResult:
@@ -711,7 +807,22 @@ def expire_due_sessions(*, limit: int | None = None) -> ExpiryResult:
     result = ExpiryResult(examined=len(due))
     unreachable_routers: set = set()
 
+    # Sessions that end WITH a Wizyfi reset are left to that reset while it is
+    # still due/running, so they end as DISCONNECTED (by the reset), not EXPIRED a
+    # few seconds early. If the reset never finishes (stuck, or missed its window
+    # and failed), the grace period below lets the sweep take over.
+    bound_ids = {s.bound_reset_event_id for s in due if s.bound_reset_event_id}
+    pending_resets = (
+        set(HardLogoutEvent.objects.filter(id__in=bound_ids, status__in=("SCHEDULED", "RUNNING")).values_list("id", flat=True))
+        if bound_ids else set()
+    )
+
     for session in due:
+        overdue = now - session.expires_at
+        if session.bound_reset_event_id in pending_resets and overdue < grace:
+            result.deferred += 1
+            continue
+
         confirmed = False
         failure_code = ""
 
@@ -730,7 +841,6 @@ def expire_due_sessions(*, limit: int | None = None) -> ExpiryResult:
                 if failure_code in ROUTER_LEVEL_CODES:
                     unreachable_routers.add(session.router_id)
 
-        overdue = now - session.expires_at
         if not confirmed and overdue < grace:
             result.pending += 1
             continue

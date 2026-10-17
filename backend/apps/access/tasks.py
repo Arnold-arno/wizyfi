@@ -59,7 +59,7 @@ def expire_due_sessions_task() -> dict:
     if result.examined:
         logger.info("session_expiry.swept", extra={
             "examined": result.examined, "expired": result.expired,
-            "unconfirmed": result.unconfirmed, "pending": result.pending,
+            "unconfirmed": result.unconfirmed, "pending": result.pending, "deferred": result.deferred,
         })
     return {"examined": result.examined, "expired": result.expired,
-            "unconfirmed": result.unconfirmed, "pending": result.pending}
+            "unconfirmed": result.unconfirmed, "pending": result.pending, "deferred": result.deferred}

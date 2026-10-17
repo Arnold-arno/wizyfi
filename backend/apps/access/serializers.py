@@ -37,7 +37,7 @@ class AccessPlanSerializer(serializers.ModelSerializer):
         model = AccessPlan
         fields = [
             "id", "name", "description", "price", "currency", "duration_minutes",
-            "quota", "availability", "status", "created_at", "updated_at",
+            "quota", "availability", "status", "validity_mode", "created_at", "updated_at",
             "data_cap_mb", "max_concurrent_devices",
             "is_publicly_listed", "available_from", "available_until",
         ]
@@ -136,6 +136,7 @@ class SessionSerializer(serializers.ModelSerializer):
     SessionViewSet already select_related()s these, so no extra queries."""
 
     customer_label = serializers.SerializerMethodField()
+    ends_with_reset = serializers.SerializerMethodField()
     place_name = serializers.CharField(source="place.name", read_only=True, default=None)
     router_name = serializers.CharField(source="router.name", read_only=True, default=None)
     access_plan_name = serializers.CharField(source="access_plan.name", read_only=True, default=None)
@@ -145,9 +146,13 @@ class SessionSerializer(serializers.ModelSerializer):
         fields = [
             "id", "customer", "customer_label", "device", "router", "router_name",
             "place", "place_name", "access_plan", "access_plan_name", "voucher",
-            "started_at", "expires_at", "ended_at", "status",
+            "started_at", "expires_at", "ended_at", "status", "ends_with_reset",
         ]
         read_only_fields = fields
+
+    def get_ends_with_reset(self, obj):
+        # True when the end time was taken from a scheduled Wizyfi reset.
+        return obj.bound_reset_event_id is not None
 
     def get_customer_label(self, obj):
         # Name if known, else MAC. Phone is deliberately never exposed here:

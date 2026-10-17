@@ -6,6 +6,9 @@
 # (status, timestamps, org internals) beyond what an end user actually
 # needs (doc PRD non-goal: "Do not make the captive portal a miniature
 # provider dashboard").
+#
+# CHANGED (Round 16): plans carry validity_mode and access_ends_at, so a user can
+# see WHEN access will end before they pay or redeem.
 
 from rest_framework import serializers
 
@@ -26,6 +29,10 @@ class PortalPlanSerializer(serializers.Serializer):
     duration_minutes = serializers.IntegerField()
     data_cap_mb = serializers.IntegerField(allow_null=True)
     max_concurrent_devices = serializers.IntegerField(allow_null=True)
+    validity_mode = serializers.CharField()
+    # Only for "until the next reset" plans, and only when a covering reset is
+    # scheduled; null means "lasts duration_minutes".
+    access_ends_at = serializers.DateTimeField(allow_null=True)
 
 
 class PortalRedeemRequestSerializer(serializers.Serializer):

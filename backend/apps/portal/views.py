@@ -4,6 +4,12 @@
 # unauthenticated end users (doc00 §2: Captive Portal experience).
 # Every view here is AllowAny by design — the security boundary is rate
 # limiting and careful field selection, not authentication.
+#
+# CHANGED (Round 16): PortalPlansView reports when "until the next reset" access
+# will end (optionally for a specific router via ?router=<id>). Redeem is unchanged:
+# start_session sets the real end time.
+
+import uuid
 
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import AllowAny
@@ -12,7 +18,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.access.models import AccessPlan
-from apps.access.services import redeem_voucher, start_session
+from apps.access.services import next_reset_for, redeem_voucher, start_session
 from apps.connectors.models import Router
 from apps.places.models import Place
 
@@ -61,11 +67,29 @@ class PortalPlansView(APIView):
 
     def get(self, request, place_id):
         place, _config = _get_enabled_place(place_id)
-        plans = AccessPlan.objects.filter(
-            organization_id=place.organization_id,
-            status="ACTIVE",
-            is_publicly_listed=True,
-        ).order_by("price")
+
+        # Optional ?router=<id>: lets a router-specific reset be reflected. An
+        # invalid or foreign id is ignored (never an error that leaks anything).
+        router = None
+        raw = request.query_params.get("router")
+        if raw:
+            try:
+                router = Router.objects.filter(id=uuid.UUID(raw), place=place).first()
+            except ValueError:
+                router = None
+
+        reset = next_reset_for(place, router)
+        plans = list(
+            AccessPlan.objects.filter(
+                organization_id=place.organization_id,
+                status="ACTIVE",
+                is_publicly_listed=True,
+            ).order_by("price")
+        )
+        for plan in plans:
+            plan.access_ends_at = (
+                reset.scheduled_at if (plan.validity_mode == "UNTIL_NEXT_RESET" and reset) else None
+            )
         return Response(PortalPlanSerializer(plans, many=True).data)
 
 

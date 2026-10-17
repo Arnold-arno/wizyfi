@@ -50,6 +50,20 @@ class AccessPlan(BaseModel):
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="DRAFT")
 
+    # Round 16. How a session's end time is set:
+    #  DURATION          now + duration_minutes (the original behaviour)
+    #  UNTIL_NEXT_RESET  the time of the next scheduled Wizyfi reset that covers
+    #                    the router. duration_minutes is then ONLY the fallback
+    #                    used when no reset is scheduled, so access can never
+    #                    silently become unlimited.
+    # Plans only READ reset schedules; they never create or trigger a reset
+    # (doc00 §4 independence rule).
+    VALIDITY_CHOICES = [
+        ("DURATION", "After a fixed duration"),
+        ("UNTIL_NEXT_RESET", "Until the next Wizyfi reset"),
+    ]
+    validity_mode = models.CharField(max_length=20, choices=VALIDITY_CHOICES, default="DURATION")
+
     class Meta:
         db_table = "access_accessplan"
         indexes = [
@@ -159,6 +173,12 @@ class Session(BaseModel):
     expires_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
+
+    # Round 16: set when expires_at was taken from a scheduled Wizyfi reset. A
+    # PLAIN UUID, deliberately not a ForeignKey: the reset subsystem stays
+    # independent of the session lifecycle at the database level. Used to move
+    # these sessions on if that reset is cancelled.
+    bound_reset_event_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "access_session"

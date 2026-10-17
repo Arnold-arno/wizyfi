@@ -230,7 +230,7 @@ class TestTaskAndSchema:
         make_session(place, router, organization, "AA:00:00:14:00:01")
         with patch(DISCONNECT, return_value=OK):
             out = expire_due_sessions_task()
-        assert out == {"examined": 1, "expired": 1, "unconfirmed": 0, "pending": 0}
+        assert out == {"examined": 1, "expired": 1, "unconfirmed": 0, "pending": 0, "deferred": 0}
 
     def test_sweep_index_exists(self):
         with connection.cursor() as cur:
