@@ -1,7 +1,9 @@
 ```tsx
 // Wizyfi routing configuration
-// RootRedirect is outside RequireAuth so the root route can decide
-// where to navigate without being blocked by the authentication guard.
+// Default landing destination: /app/dashboard
+//
+// The root redirect is outside RequireAuth.
+// Existing authentication and permission checks remain enabled.
 //
 // Route family:
 // /app/dashboard
@@ -24,8 +26,8 @@ import { EmptyState } from "./components/ui/EmptyState";
 import { AccessPlansPage } from "./features/access/pages/AccessPlansPage";
 import { PlanEditorPage } from "./features/access/pages/PlanEditorPage";
 
-import { AdminLayout } from "./features/admin/components/AdminLayout";
 import { ActivityPage } from "./features/admin/pages/ActivityPage";
+import { AdminLayout } from "./features/admin/components/AdminLayout";
 import { AdminDashboardPage } from "./features/admin/pages/AdminDashboardPage";
 import { AgentDetailPage } from "./features/admin/pages/AgentDetailPage";
 import { AgentsPage } from "./features/admin/pages/AgentsPage";
@@ -52,8 +54,6 @@ import { WizyfiHistoryPage } from "./features/wizyfi/pages/WizyfiHistoryPage";
 import { WizyfiOverviewPage } from "./features/wizyfi/pages/WizyfiOverviewPage";
 import { WizyfiSchedulePage } from "./features/wizyfi/pages/WizyfiSchedulePage";
 
-import { useSessionStore } from "./state/sessionStore";
-
 function ModulePlaceholder({ title }: { title: string }) {
   return (
     <EmptyState
@@ -64,43 +64,23 @@ function ModulePlaceholder({ title }: { title: string }) {
 }
 
 /**
- * Root route handler.
+ * Default landing route.
+ * Visiting "/" redirects directly to the application dashboard.
  *
- * This component stays outside RequireAuth.
- * A missing user in the store is not automatically treated as
- * proof that the session has been checked and the user is logged out.
+ * This redirect itself does not check authentication.
+ * The destination remains protected by RequireAuth.
  */
 function RootRedirect() {
-  const user = useSessionStore((s) => s.user);
-  const hasOrg = useSessionStore((s) => s.memberships.length > 0);
-
-  // Platform staff land in the admin area.
-  if (user?.isPlatformStaff) {
-    return <Navigate to="/admin" replace />;
-  }
-
-  // Users with an organization land on the dashboard.
-  if (user && hasOrg) {
-    return <Navigate to="/app/dashboard" replace />;
-  }
-
-  // Authenticated users without an organization continue onboarding.
-  if (user) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  // Default landing destination.
-  // RequireAuth may still enforce authentication on this destination.
   return <Navigate to="/app/dashboard" replace />;
 }
 
 export default function App() {
   return (
     <Routes>
-      {/* Root redirect is intentionally outside RequireAuth. */}
+      {/* Default landing destination */}
       <Route path="/" element={<RootRedirect />} />
 
-      {/* Public pages */}
+      {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/wizyfi" element={<WizyfiProductPage />} />
 
@@ -108,6 +88,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="/onboarding" element={<OnboardingPage />} />
 
+        {/* Main application */}
         <Route path="/app" element={<AppLayout />}>
           <Route
             index
