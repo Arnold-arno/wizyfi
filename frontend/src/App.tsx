@@ -1,4 +1,3 @@
-
 // Wizyfi routing configuration
 // Default landing destination: /app/dashboard
 //
@@ -281,4 +280,3 @@ export default function App() {
     </Routes>
   );
 }
-```
