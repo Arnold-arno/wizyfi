@@ -83,170 +83,170 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/wizyfi" element={<WizyfiProductPage />} />
 
-      {/* Protected application routes */}
+      {/* Main application (Moved outside RequireAuth for development/testing) */}
+      <Route path="/app" element={<AppLayout />}>
+        <Route
+          index
+          element={<Navigate to="dashboard" replace />}
+        />
+
+        <Route path="dashboard" element={<DashboardPage />} />
+
+        {/* Places */}
+        <Route
+          path="places"
+          element={
+            <RequirePermission code="places:view">
+              <PlacesPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="places/new"
+          element={
+            <RequirePermission code="places:create">
+              <PlaceFormPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="places/:placeId"
+          element={
+            <RequirePermission code="places:view">
+              <PlaceDetailPage />
+            </RequirePermission>
+          }
+        />
+
+        {/* Devices and connections */}
+        <Route
+          path="devices"
+          element={
+            <RequirePermission code="devices:view">
+              <DevicesPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="connections"
+          element={
+            <RequirePermission code="connections:view">
+              <ConnectionsPage />
+            </RequirePermission>
+          }
+        />
+
+        {/* Placeholder modules */}
+        <Route
+          path="users/*"
+          element={<ModulePlaceholder title="Users" />}
+        />
+
+        <Route
+          path="network-cycles/*"
+          element={<ModulePlaceholder title="Network cycles" />}
+        />
+
+        {/* Hard logout / Wizyfi */}
+        <Route
+          path="hard-logout"
+          element={
+            <RequirePermission code="hard_logout:view">
+              <WizyfiOverviewPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="hard-logout/schedule"
+          element={
+            <RequirePermission code="hard_logout:schedule">
+              <WizyfiSchedulePage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="hard-logout/history"
+          element={
+            <RequirePermission code="hard_logout:view">
+              <WizyfiHistoryPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="hard-logout/:eventId"
+          element={
+            <RequirePermission code="hard_logout:view">
+              <WizyfiEventPage />
+            </RequirePermission>
+          }
+        />
+
+        {/* Access plans */}
+        <Route
+          path="access-plans"
+          element={
+            <RequirePermission code="access_plans:view">
+              <AccessPlansPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="access-plans/new"
+          element={
+            <RequirePermission code="access_plans:create">
+              <PlanEditorPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="access-plans/:id"
+          element={
+            <RequirePermission code="access_plans:view">
+              <PlanEditorPage />
+            </RequirePermission>
+          }
+        />
+
+        {/* Vouchers, sales, and transactions */}
+        <Route
+          path="vouchers"
+          element={
+            <RequirePermission code="vouchers:view">
+              <VouchersPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="sales"
+          element={
+            <RequirePermission code="sales:view">
+              <SalesPage />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="transactions"
+          element={
+            <RequirePermission code="transactions:view">
+              <TransactionsPage />
+            </RequirePermission>
+          }
+        />
+      </Route>
+
+      {/* Protected application routes (Onboarding & Admin) */}
       <Route element={<RequireAuth />}>
         <Route path="/onboarding" element={<OnboardingPage />} />
-
-        {/* Main application */}
-        <Route path="/app" element={<AppLayout />}>
-          <Route
-            index
-            element={<Navigate to="dashboard" replace />}
-          />
-
-          <Route path="dashboard" element={<DashboardPage />} />
-
-          {/* Places */}
-          <Route
-            path="places"
-            element={
-              <RequirePermission code="places:view">
-                <PlacesPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="places/new"
-            element={
-              <RequirePermission code="places:create">
-                <PlaceFormPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="places/:placeId"
-            element={
-              <RequirePermission code="places:view">
-                <PlaceDetailPage />
-              </RequirePermission>
-            }
-          />
-
-          {/* Devices and connections */}
-          <Route
-            path="devices"
-            element={
-              <RequirePermission code="devices:view">
-                <DevicesPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="connections"
-            element={
-              <RequirePermission code="connections:view">
-                <ConnectionsPage />
-              </RequirePermission>
-            }
-          />
-
-          {/* Placeholder modules */}
-          <Route
-            path="users/*"
-            element={<ModulePlaceholder title="Users" />}
-          />
-
-          <Route
-            path="network-cycles/*"
-            element={<ModulePlaceholder title="Network cycles" />}
-          />
-
-          {/* Hard logout / Wizyfi */}
-          <Route
-            path="hard-logout"
-            element={
-              <RequirePermission code="hard_logout:view">
-                <WizyfiOverviewPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="hard-logout/schedule"
-            element={
-              <RequirePermission code="hard_logout:schedule">
-                <WizyfiSchedulePage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="hard-logout/history"
-            element={
-              <RequirePermission code="hard_logout:view">
-                <WizyfiHistoryPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="hard-logout/:eventId"
-            element={
-              <RequirePermission code="hard_logout:view">
-                <WizyfiEventPage />
-              </RequirePermission>
-            }
-          />
-
-          {/* Access plans */}
-          <Route
-            path="access-plans"
-            element={
-              <RequirePermission code="access_plans:view">
-                <AccessPlansPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="access-plans/new"
-            element={
-              <RequirePermission code="access_plans:create">
-                <PlanEditorPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="access-plans/:id"
-            element={
-              <RequirePermission code="access_plans:view">
-                <PlanEditorPage />
-              </RequirePermission>
-            }
-          />
-
-          {/* Vouchers, sales, and transactions */}
-          <Route
-            path="vouchers"
-            element={
-              <RequirePermission code="vouchers:view">
-                <VouchersPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="sales"
-            element={
-              <RequirePermission code="sales:view">
-                <SalesPage />
-              </RequirePermission>
-            }
-          />
-
-          <Route
-            path="transactions"
-            element={
-              <RequirePermission code="transactions:view">
-                <TransactionsPage />
-              </RequirePermission>
-            }
-          />
-        </Route>
 
         {/* Platform administration */}
         <Route path="/admin" element={<AdminRoute />}>
