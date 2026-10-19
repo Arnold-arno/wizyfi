@@ -1,14 +1,17 @@
 ```tsx
-// CHANGED (Round 14):
-// RootRedirect is public and dynamically routes users based on their session.
-// Unauthenticated users are redirected to /login.
-// Authenticated users are routed to the dashboard, onboarding, or admin.
-// Places, Devices, and Live connections are real pages.
-// Users and Network cycles remain placeholders.
+// Wizyfi routing configuration
+// RootRedirect is outside RequireAuth so the root route can decide
+// where to navigate without being blocked by the authentication guard.
 //
-// Route family follows the canonical navigation map:
-// /app/hard-logout, /app/hard-logout/schedule,
-// /app/hard-logout/history, /app/hard-logout/:eventId
+// Route family:
+// /app/dashboard
+// /app/places
+// /app/devices
+// /app/connections
+// /app/hard-logout
+// /app/hard-logout/schedule
+// /app/hard-logout/history
+// /app/hard-logout/:eventId
 
 import { Navigate, Route, Routes } from "react-router-dom";
 
@@ -21,8 +24,8 @@ import { EmptyState } from "./components/ui/EmptyState";
 import { AccessPlansPage } from "./features/access/pages/AccessPlansPage";
 import { PlanEditorPage } from "./features/access/pages/PlanEditorPage";
 
-import { ActivityPage } from "./features/admin/pages/ActivityPage";
 import { AdminLayout } from "./features/admin/components/AdminLayout";
+import { ActivityPage } from "./features/admin/pages/ActivityPage";
 import { AdminDashboardPage } from "./features/admin/pages/AdminDashboardPage";
 import { AgentDetailPage } from "./features/admin/pages/AgentDetailPage";
 import { AgentsPage } from "./features/admin/pages/AgentsPage";
@@ -61,49 +64,50 @@ function ModulePlaceholder({ title }: { title: string }) {
 }
 
 /**
- * Public root redirect.
+ * Root route handler.
  *
- * This component MUST remain outside <RequireAuth />.
- * It checks the current session and redirects to the appropriate page.
+ * This component stays outside RequireAuth.
+ * A missing user in the store is not automatically treated as
+ * proof that the session has been checked and the user is logged out.
  */
 function RootRedirect() {
   const user = useSessionStore((s) => s.user);
-  const memberships = useSessionStore((s) => s.memberships);
+  const hasOrg = useSessionStore((s) => s.memberships.length > 0);
 
-  // No authenticated user: send them to the login page.
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Platform staff without an organization should access admin.
-  if (user.isPlatformStaff) {
+  // Platform staff land in the admin area.
+  if (user?.isPlatformStaff) {
     return <Navigate to="/admin" replace />;
   }
 
-  // Users belonging to an organization go to the dashboard.
-  if (memberships.length > 0) {
+  // Users with an organization land on the dashboard.
+  if (user && hasOrg) {
     return <Navigate to="/app/dashboard" replace />;
   }
 
   // Authenticated users without an organization continue onboarding.
-  return <Navigate to="/onboarding" replace />;
+  if (user) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  // Default landing destination.
+  // RequireAuth may still enforce authentication on this destination.
+  return <Navigate to="/app/dashboard" replace />;
 }
 
 export default function App() {
   return (
     <Routes>
-      {/* Public root: no RequireAuth wrapper */}
+      {/* Root redirect is intentionally outside RequireAuth. */}
       <Route path="/" element={<RootRedirect />} />
 
-      {/* Public routes */}
+      {/* Public pages */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/wizyfi" element={<WizyfiProductPage />} />
 
-      {/* Authenticated routes */}
+      {/* Protected application routes */}
       <Route element={<RequireAuth />}>
         <Route path="/onboarding" element={<OnboardingPage />} />
 
-        {/* Main application */}
         <Route path="/app" element={<AppLayout />}>
           <Route
             index
@@ -112,6 +116,7 @@ export default function App() {
 
           <Route path="dashboard" element={<DashboardPage />} />
 
+          {/* Places */}
           <Route
             path="places"
             element={
@@ -139,6 +144,7 @@ export default function App() {
             }
           />
 
+          {/* Devices and connections */}
           <Route
             path="devices"
             element={
@@ -157,6 +163,7 @@ export default function App() {
             }
           />
 
+          {/* Placeholder modules */}
           <Route
             path="users/*"
             element={<ModulePlaceholder title="Users" />}
@@ -167,7 +174,7 @@ export default function App() {
             element={<ModulePlaceholder title="Network cycles" />}
           />
 
-          {/* Wizyfi / hard logout */}
+          {/* Hard logout / Wizyfi */}
           <Route
             path="hard-logout"
             element={
@@ -282,6 +289,7 @@ export default function App() {
               <h1 className="text-3xl font-bold text-[var(--foreground)]">
                 404
               </h1>
+
               <p className="mt-2 text-[var(--foreground-secondary)]">
                 Page not found.
               </p>
