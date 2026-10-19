@@ -1,4 +1,4 @@
-```tsx
+
 // Wizyfi routing configuration
 // Default landing destination: /app/dashboard
 //
