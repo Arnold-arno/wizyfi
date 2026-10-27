@@ -7,10 +7,12 @@
 # truth, so schedules survive broker loss, worker restarts and browser closure
 # (doc11; HL-03, HL-06).
 #
+# CHANGED (Round 17): imports recurring_tasks so Celery registers the
+# recurring-reset materializer.
 # CHANGED (Round 15): adds the session expiry sweep task.
-# CHANGED (Round 14): the sweep now also picks up RUNNING events whose lease
-# has EXPIRED — that is a worker that died or stalled — so they resume.
-# A RUNNING event with a live lease is left alone.
+# CHANGED (Round 14): the sweep also picks up RUNNING events whose lease has
+# EXPIRED (a worker that died or stalled) so they resume. A RUNNING event with a
+# live lease is left alone.
 #
 # Dispatching the same event twice is safe: the claim step serialises on the
 # row, and a second caller sees a live lease or a terminal state and returns.
@@ -21,6 +23,7 @@ from celery import shared_task
 from django.db.models import Q
 from django.utils import timezone
 
+from . import recurring_tasks  # noqa: F401  (registers wizyfi.materialize_recurring_resets)
 from .models import HardLogoutEvent
 from .services import execute_hard_logout_event, expire_due_sessions
 

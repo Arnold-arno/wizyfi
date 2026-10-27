@@ -1,14 +1,19 @@
-// Minimal sign-in. Expectations_and_workflow lists a Login page in your live
-// repo — keep yours if it exists; this exists so the tree runs on its own.
+// Sign-in (routes /login and /sign-in). CHANGED (Round 17): split-screen shell,
+// show-password control, link to sign-up, and post-login goes to /start (which
+// decides dashboard / admin / onboarding) instead of "/", now the public home.
+//
+// Not included on purpose: "Forgot password" and provider buttons — the backend
+// has no reset endpoint or OAuth yet, and the spec says never show inactive options.
 
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Field } from "../../components/ui/Field";
 import { btnPrimary, inputClass } from "../../components/ui/styles";
 import { ApiError } from "../../lib/api/client";
 import { authApi } from "../../lib/api/authApi";
 import { queryClient } from "../../lib/queryClient";
 import { useSessionStore } from "../../state/sessionStore";
+import { AuthShell } from "./AuthShell";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -16,10 +21,11 @@ export function LoginPage() {
   const hasToken = useSessionStore((s) => s.accessToken !== null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (hasToken) return <Navigate to="/" replace />;
+  if (hasToken) return <Navigate to="/start" replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,7 +37,7 @@ export function LoginPage() {
       queryClient.clear();
       useSessionStore.getState().setTokens(access, refresh);
       const from = (location.state as { from?: string } | null)?.from;
-      navigate(from && from.startsWith("/") ? from : "/", { replace: true });
+      navigate(from && from.startsWith("/") ? from : "/start", { replace: true });
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
@@ -46,29 +52,38 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] p-4">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6"
-      >
-        <h1 className="text-xl font-bold text-[var(--foreground)]">Sign in to Wizyfi Bridge</h1>
-        <div className="mt-5 flex flex-col gap-4">
-          <Field label="Email">
-            <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
-          </Field>
-          <Field label="Password">
-            <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
-          </Field>
-          {error && (
-            <p role="alert" className="text-sm text-[var(--danger)]">
-              {error}
-            </p>
-          )}
-          <button type="submit" className={btnPrimary} disabled={pending || !email || !password}>
-            {pending ? "Signing in…" : "Sign in"}
-          </button>
-        </div>
+    <AuthShell
+      title="Welcome back"
+      subtitle="Sign in to manage your Places and networks."
+      footer={
+        <p>
+          New to Wizyfi Bridge?{" "}
+          <Link to="/sign-up" className="font-medium text-[var(--primary)] hover:underline">
+            Create an account
+          </Link>
+        </p>
+      }
+    >
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+        <Field label="Email">
+          <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+        </Field>
+        <Field label="Password">
+          <input type={show ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
+        </Field>
+        <label className="flex items-center gap-2 text-sm text-[var(--foreground-secondary)]">
+          <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
+          Show password
+        </label>
+        {error && (
+          <p role="alert" className="text-sm text-[var(--danger)]">
+            {error}
+          </p>
+        )}
+        <button type="submit" className={btnPrimary} disabled={pending || !email || !password}>
+          {pending ? "Signing in…" : "Sign in"}
+        </button>
       </form>
-    </div>
+    </AuthShell>
   );
 }
