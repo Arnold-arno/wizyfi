@@ -1,21 +1,17 @@
-// Super Admin endpoints under /platform-admin/. Note: the agents list is a
-// plain array on the server (not paginated) — see DELIVERY_NOTES.
-
+// Super Admin endpoints under /platform-admin/. The agents list is a plain
+// array on the server (not paginated).
 import { apiClient } from "./client";
 import type { Paginated } from "../../types/common";
 import type {
-  AgentDetail,
-  AgentListItem,
-  PlatformActivity,
-  PlatformDashboard,
-  PlatformPlan,
-  PlatformPlanInput,
+  AgentDetail, AgentListItem, GrowthRange, PlatformActivity,
+  PlatformDashboard, PlatformPlan, PlatformPlanInput,
 } from "../../types/admin";
 
 const B = "/platform-admin";
 
 export const adminApi = {
-  dashboard: () => apiClient.get<PlatformDashboard>(`${B}/dashboard/`),
+  dashboard: (range: GrowthRange = "30d") =>
+    apiClient.get<PlatformDashboard>(`${B}/dashboard/`, { params: { range } }),
 
   agents: () => apiClient.get<AgentListItem[]>(`${B}/agents/`),
   agent: (id: string) => apiClient.get<AgentDetail>(`${B}/agents/${id}/`),
@@ -33,6 +29,6 @@ export const adminApi = {
   updatePlan: (id: string, input: Partial<PlatformPlanInput>) =>
     apiClient.patch<PlatformPlan>(`${B}/plans/${id}/`, input),
 
-  activity: (page = 1) =>
-    apiClient.get<Paginated<PlatformActivity>>(`${B}/activity/`, { params: { page } }),
+  activity: (page = 1, organization?: string) =>
+    apiClient.get<Paginated<PlatformActivity>>(`${B}/activity/`, { params: { page, organization } }),
 };

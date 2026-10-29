@@ -1,20 +1,10 @@
-// Persistent provider navigation (doc02 §3/§4). Each entry is gated by the
-// same permission code the backend enforces on that module's list endpoint.
-// CHANGED (Round 12): the Hard Logout entry is now branded "Wizyfi".
+// Persistent provider navigation (doc02 §3/§4). Each entry is gated by the same
+// permission code the backend enforces on that module's list endpoint.
+// CHANGED (Round 19): adds "Activity log" (audit:view, owner/admin).
 
 import {
-  Activity,
-  CalendarClock,
-  Layers,
-  LayoutDashboard,
-  MapPin,
-  Power,
-  Receipt,
-  Smartphone,
-  Ticket,
-  TrendingUp,
-  Users,
-  type LucideIcon,
+  Activity, CalendarClock, Layers, LayoutDashboard, MapPin, Power, Receipt,
+  ScrollText, Smartphone, Ticket, TrendingUp, Users, type LucideIcon,
 } from "lucide-react";
 
 export interface NavItem {
@@ -36,11 +26,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Network cycles", to: "/app/network-cycles", icon: CalendarClock, permission: "network_cycles:view" },
   { label: "Sales", to: "/app/sales", icon: TrendingUp, permission: "sales:view" },
   { label: "Transactions", to: "/app/transactions", icon: Receipt, permission: "transactions:view" },
-  {
-    label: "Wizyfi",
-    to: "/app/hard-logout",
-    icon: Power,
-    permission: "hard_logout:view",
-    note: "Hard logout · independent system",
-  },
+  { label: "Wizyfi", to: "/app/hard-logout", icon: Power, permission: "hard_logout:view", note: "Hard logout · independent system" },
+  { label: "Activity log", to: "/app/audit", icon: ScrollText, permission: "audit:view" },
 ];

@@ -1,13 +1,12 @@
 # apps/platform_admin/serializers.py
 #
-# doc11: "Server-side privacy boundary in Super Admin: AgentListSerializer/
-# AgentDetailSerializer are strict allow-lists returning only aggregate
-# counts — never network internals, SSIDs, credentials, or customer data."
+# Privacy boundary (supadmin spec §2): strict allow-lists of ACCOUNT metadata and
+# aggregate counts — never network names, router identities, credentials or
+# customer data. Plain serializers.Serializer, NOT ModelSerializer: every field
+# is named explicitly so nothing can be added by accident.
 #
-# These are deliberately plain serializers.Serializer, NOT ModelSerializer
-# — a ModelSerializer's ease of "just add the field name" is exactly the
-# failure mode this boundary exists to prevent. Every field below is
-# named explicitly; nothing can be added by accident.
+# CHANGED (Round 19): agent list gains max_places + last_active_at; detail gains
+# last_active_at; dashboard gains month deltas, expected revenue and growth series.
 
 from rest_framework import serializers
 
@@ -15,9 +14,7 @@ from .models import Plan
 
 
 class PlanSerializer(serializers.ModelSerializer):
-    """Full CRUD serializer for the platform's own billing catalog —
-    Plan carries no per-organization or network data, so this is safe
-    as a ModelSerializer (unlike the Agent serializers below)."""
+    """Full CRUD for the platform's own billing catalog (no per-org data)."""
 
     class Meta:
         model = Plan
@@ -34,14 +31,13 @@ class PlanSummarySerializer(serializers.Serializer):
 
 
 class AgentListSerializer(serializers.Serializer):
-    """Aggregate counts only — never a place name, router identity,
-    connector credential, or customer record."""
-
     id = serializers.UUIDField()
     name = serializers.CharField()
     status = serializers.CharField()
     place_count = serializers.IntegerField()
+    max_places = serializers.IntegerField(allow_null=True)
     plan_name = serializers.CharField(allow_null=True)
+    last_active_at = serializers.DateTimeField(allow_null=True)
     created_at = serializers.DateTimeField()
 
 
@@ -55,6 +51,7 @@ class AgentDetailSerializer(serializers.Serializer):
     plan = PlanSummarySerializer(allow_null=True)
     owner_email = serializers.CharField(allow_null=True)
     owner_name = serializers.CharField(allow_null=True)
+    last_active_at = serializers.DateTimeField(allow_null=True)
     created_at = serializers.DateTimeField()
 
 
@@ -75,9 +72,23 @@ class PlatformActivityEventSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
 
 
+class GrowthPointSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    total = serializers.IntegerField()  # cumulative count at the end of the bucket
+    new = serializers.IntegerField()    # created inside the bucket
+
+
 class PlatformDashboardSerializer(serializers.Serializer):
     total_agents = serializers.IntegerField()
     active_agents = serializers.IntegerField()
     suspended_agents = serializers.IntegerField()
     total_places = serializers.IntegerField()
     total_active_sessions = serializers.IntegerField()
+    new_agents_this_month = serializers.IntegerField()
+    new_places_this_month = serializers.IntegerField()
+    # Sum of plan prices of ACTIVE agents (annual plans / 12). An EXPECTATION from
+    # subscriptions, not collected money: there is no payments model yet.
+    expected_monthly_revenue = serializers.DecimalField(max_digits=14, decimal_places=2)
+    range = serializers.CharField()
+    agent_growth = GrowthPointSerializer(many=True)
+    network_growth = GrowthPointSerializer(many=True)

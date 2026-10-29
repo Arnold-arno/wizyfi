@@ -1,4 +1,5 @@
 // Wizyfi routing configuration.
+// CHANGED (Round 19): + /app/notifications, /app/audit, /app/settings.
 // CHANGED (Round 18): /app/users and /app/network-cycles are now real pages
 // (no more ModulePlaceholder); 404 page styled with tokens.
 // Route order note: hard-logout/recurring must stay ABOVE hard-logout/:eventId.
@@ -21,6 +22,10 @@ import { AdminDashboardPage } from "./features/admin/pages/AdminDashboardPage";
 import { AgentDetailPage } from "./features/admin/pages/AgentDetailPage";
 import { AgentsPage } from "./features/admin/pages/AgentsPage";
 import { PlansPage } from "./features/admin/pages/PlansPage";
+
+import { AuditLogPage } from "./features/audit/pages/AuditLogPage";
+import { NotificationsPage } from "./features/notifications/NotificationsPage";
+import { SettingsPage } from "./features/settings/pages/SettingsPage";
 
 import { LoginPage } from "./features/auth/LoginPage";
 import { OnboardingPage } from "./features/auth/OnboardingPage";
@@ -90,6 +95,9 @@ export default function App() {
           <Route path="vouchers" element={<RequirePermission code="vouchers:view"><VouchersPage /></RequirePermission>} />
           <Route path="sales" element={<RequirePermission code="sales:view"><SalesPage /></RequirePermission>} />
           <Route path="transactions" element={<RequirePermission code="transactions:view"><TransactionsPage /></RequirePermission>} />
+          <Route path="audit" element={<RequirePermission code="audit:view"><AuditLogPage /></RequirePermission>} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         {/* Platform administration */}

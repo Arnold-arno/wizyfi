@@ -1,6 +1,7 @@
-// Theme: preference is "light" | "dark" | "system"; the resolved theme is
-// written to <html data-theme> (and the .dark class, kept for older selectors).
-// System is followed until the user explicitly chooses.
+// Theme: preference is "light" | "dark" | "system"; the resolved theme is written
+// to <html data-theme> (and the .dark class, kept for older selectors). System is
+// followed until the user explicitly chooses.
+// CHANGED (Round 19): setPreference() so Settings can offer a real System option.
 export type Theme = "light" | "dark";
 export type ThemePreference = Theme | "system";
 const KEY = "wizyfi_theme";
@@ -30,15 +31,17 @@ function paint(theme: Theme): void {
 
 export const getTheme = (): Theme => resolve();
 
-/** Explicit user choice. */
-export function applyTheme(theme: Theme): void {
-  paint(theme);
+export function setPreference(pref: ThemePreference): void {
+  paint(resolve(pref));
   try {
-    localStorage.setItem(KEY, theme);
+    localStorage.setItem(KEY, pref);
   } catch {
     /* ignore */
   }
 }
+
+/** Explicit light/dark choice (used by the header toggle). */
+export const applyTheme = (theme: Theme): void => setPreference(theme);
 
 export function initTheme(): void {
   paint(resolve());

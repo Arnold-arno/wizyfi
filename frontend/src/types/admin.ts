@@ -2,6 +2,13 @@
 // counts and account metadata only — never network or customer data.
 
 export type AgentStatus = "ACTIVE" | "SUSPENDED";
+export type GrowthRange = "7d" | "30d" | "3m" | "6m" | "1y";
+
+export interface GrowthPoint {
+  date: string; // YYYY-MM-DD (UTC)
+  total: number; // cumulative at the end of the bucket
+  new: number; // created inside the bucket
+}
 
 export interface PlatformDashboard {
   totalAgents: number;
@@ -9,6 +16,13 @@ export interface PlatformDashboard {
   suspendedAgents: number;
   totalPlaces: number;
   totalActiveSessions: number;
+  newAgentsThisMonth: number;
+  newPlacesThisMonth: number;
+  /** Decimal string. Expected from subscriptions — NOT collected money. */
+  expectedMonthlyRevenue: string;
+  range: GrowthRange;
+  agentGrowth: GrowthPoint[];
+  networkGrowth: GrowthPoint[];
 }
 
 export interface AgentListItem {
@@ -16,7 +30,9 @@ export interface AgentListItem {
   name: string;
   status: AgentStatus;
   placeCount: number;
+  maxPlaces: number | null;
   planName: string | null;
+  lastActiveAt: string | null;
   createdAt: string;
 }
 
@@ -38,6 +54,7 @@ export interface AgentDetail {
   plan: PlanSummary | null;
   ownerEmail: string | null;
   ownerName: string | null;
+  lastActiveAt: string | null;
   createdAt: string;
 }
 

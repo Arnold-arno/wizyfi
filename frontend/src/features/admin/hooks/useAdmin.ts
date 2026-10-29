@@ -1,9 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "../../../lib/api/adminApi";
-import type { AgentDetail, PlatformPlanInput } from "../../../types/admin";
+import type { AgentDetail, GrowthRange, PlatformPlanInput } from "../../../types/admin";
 
-export const usePlatformDashboard = () =>
-  useQuery({ queryKey: ["admin", "dashboard"], queryFn: adminApi.dashboard, refetchInterval: 60_000 });
+// NOTE: moved from features/admin/hooks/useAdmin.ts — same path, same exports,
+// plus the range-aware dashboard hook and per-agent activity.
+
+export const usePlatformDashboard = (range: GrowthRange = "30d") =>
+  useQuery({
+    queryKey: ["admin", "dashboard", range],
+    queryFn: () => adminApi.dashboard(range),
+    refetchInterval: 60_000,
+    placeholderData: (prev) => prev, // keep the charts on screen while a new range loads
+  });
 
 export const useAgents = () => useQuery({ queryKey: ["admin", "agents"], queryFn: adminApi.agents });
 
@@ -18,6 +26,13 @@ export const usePlatformActivity = (page: number) =>
     queryKey: ["admin", "activity", page],
     queryFn: () => adminApi.activity(page),
     placeholderData: (prev) => prev,
+  });
+
+export const useAgentActivity = (organizationId: string | undefined) =>
+  useQuery({
+    queryKey: ["admin", "activity", "agent", organizationId],
+    queryFn: () => adminApi.activity(1, organizationId),
+    enabled: Boolean(organizationId),
   });
 
 // Every agent mutation returns the fresh AgentDetail: put it straight into the
