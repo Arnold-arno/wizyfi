@@ -1,23 +1,16 @@
 // Wizyfi routing configuration.
-//
-// CHANGED (Round 17):
-//  * "/" is now the PUBLIC HOME PAGE (it used to redirect to /app/dashboard).
-//  * /sign-in and /sign-up added; /login kept as an alias for old links.
-//  * /start decides where a signed-in user goes (dashboard / admin / onboarding).
-//  * /app is back UNDER RequireAuth. It had been moved out "for development/testing",
-//    but RequireAuth is what loads the profile and memberships (useBootstrapSession);
-//    outside it the app never learns the user's organization or permissions, and
-//    unauthenticated visitors could open /app. Move it out again only for local UI work.
-//  * /app/hard-logout/recurring added (must stay ABOVE hard-logout/:eventId).
+// CHANGED (Round 18): /app/users and /app/network-cycles are now real pages
+// (no more ModulePlaceholder); 404 page styled with tokens.
+// Route order note: hard-logout/recurring must stay ABOVE hard-logout/:eventId.
 
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminRoute } from "./components/auth/AdminRoute";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import { RequirePermission } from "./components/auth/RequirePermission";
 import { StartRedirect } from "./components/auth/StartRedirect";
 import { AppLayout } from "./components/layout/AppLayout";
-import { EmptyState } from "./components/ui/EmptyState";
+import { btnPrimary } from "./components/ui/styles";
 
 import { AccessPlansPage } from "./features/access/pages/AccessPlansPage";
 import { PlanEditorPage } from "./features/access/pages/PlanEditorPage";
@@ -34,6 +27,7 @@ import { OnboardingPage } from "./features/auth/OnboardingPage";
 import { SignUpPage } from "./features/auth/SignUpPage";
 
 import { ConnectionsPage } from "./features/connections/pages/ConnectionsPage";
+import { NetworkCyclesPage } from "./features/cycles/pages/NetworkCyclesPage";
 import { DashboardPage } from "./features/dashboard/pages/DashboardPage";
 import { DevicesPage } from "./features/devices/pages/DevicesPage";
 
@@ -45,6 +39,7 @@ import { HomePage } from "./features/public/HomePage";
 import { WizyfiProductPage } from "./features/public/WizyfiProductPage";
 import { SalesPage } from "./features/sales/pages/SalesPage";
 import { TransactionsPage } from "./features/transactions/pages/TransactionsPage";
+import { UsersPage } from "./features/users/pages/UsersPage";
 import { VouchersPage } from "./features/vouchers/pages/VouchersPage";
 
 import { WizyfiEventPage } from "./features/wizyfi/pages/WizyfiEventPage";
@@ -52,15 +47,6 @@ import { WizyfiHistoryPage } from "./features/wizyfi/pages/WizyfiHistoryPage";
 import { WizyfiOverviewPage } from "./features/wizyfi/pages/WizyfiOverviewPage";
 import { WizyfiRecurringPage } from "./features/wizyfi/pages/WizyfiRecurringPage";
 import { WizyfiSchedulePage } from "./features/wizyfi/pages/WizyfiSchedulePage";
-
-function ModulePlaceholder({ title }: { title: string }) {
-  return (
-    <EmptyState
-      title={title}
-      description="This screen isn't wired into this build yet. Replace this placeholder with your page."
-    />
-  );
-}
 
 export default function App() {
   return (
@@ -87,9 +73,8 @@ export default function App() {
 
           <Route path="devices" element={<RequirePermission code="devices:view"><DevicesPage /></RequirePermission>} />
           <Route path="connections" element={<RequirePermission code="connections:view"><ConnectionsPage /></RequirePermission>} />
-
-          <Route path="users/*" element={<ModulePlaceholder title="Users" />} />
-          <Route path="network-cycles/*" element={<ModulePlaceholder title="Network cycles" />} />
+          <Route path="users" element={<RequirePermission code="customers:view"><UsersPage /></RequirePermission>} />
+          <Route path="network-cycles" element={<RequirePermission code="network_cycles:view"><NetworkCyclesPage /></RequirePermission>} />
 
           {/* Wizyfi / hard logout */}
           <Route path="hard-logout" element={<RequirePermission code="hard_logout:view"><WizyfiOverviewPage /></RequirePermission>} />
@@ -123,10 +108,12 @@ export default function App() {
       <Route
         path="*"
         element={
-          <div className="flex min-h-screen items-center justify-center bg-[var(--background)] text-center">
+          <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4 text-center">
             <div>
-              <h1 className="text-3xl font-bold text-[var(--foreground)]">404</h1>
-              <p className="mt-2 text-[var(--foreground-secondary)]">Page not found.</p>
+              <p className="text-sm font-semibold text-[var(--primary)]">404</p>
+              <h1 className="mt-1 text-3xl font-bold text-[var(--foreground)]">Page not found</h1>
+              <p className="mt-2 text-[var(--foreground-secondary)]">The page you're looking for doesn't exist or has moved.</p>
+              <Link to="/" className={`${btnPrimary} mt-6`}>Back to home</Link>
             </div>
           </div>
         }

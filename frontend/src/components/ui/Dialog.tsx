@@ -1,6 +1,6 @@
-// Modal contract (doc05 §5, doc02 §9): focus moves in, Tab is trapped, Escape
-// closes, focus returns to the control that opened it. No backdrop-click
-// close — destructive/form dialogs shouldn't vanish on a stray click.
+// Modal contract: focus moves in, Tab is trapped, Escape closes, focus returns
+// to the opener. No backdrop-click close — destructive/form dialogs shouldn't
+// vanish on a stray click. Motion: overlay fade + panel rise (240 ms).
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
@@ -8,7 +8,7 @@ interface DialogProps {
   title: string;
   description?: string;
   onClose: () => void;
-  children: ReactNode;
+  children?: ReactNode;
   footer?: ReactNode;
 }
 
@@ -55,14 +55,14 @@ export function Dialog({ title, description, onClose, children, footer }: Dialog
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="wz-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow-md)]"
+        className="wz-dialog max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow-md)]"
       >
         <h2 id={titleId} className="text-lg font-semibold text-[var(--foreground)]">
           {title}
@@ -72,7 +72,7 @@ export function Dialog({ title, description, onClose, children, footer }: Dialog
             {description}
           </p>
         )}
-        <div className="mt-4">{children}</div>
+        {children && <div className="mt-4">{children}</div>}
         {footer && <div className="mt-6 flex items-center justify-end gap-2">{footer}</div>}
       </div>
     </div>

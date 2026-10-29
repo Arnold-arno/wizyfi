@@ -1,3 +1,3 @@
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div aria-hidden="true" className={`animate-pulse rounded bg-[var(--border)] ${className}`} />;
+  return <div aria-hidden="true" className={`wz-skeleton rounded ${className}`} />;
 }

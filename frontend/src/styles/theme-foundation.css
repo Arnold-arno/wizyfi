@@ -1,49 +1,93 @@
-/* Wizyfi Bridge — semantic theme foundation
-   Use these tokens through Tailwind semantic utilities.
-   Keep functional UI colors out of component-local CSS.
-*/
-:root {
+/* Wizyfi Bridge — semantic design tokens.
+   Three chromatic families only: blue (action/info), green (success),
+   red-orange (critical). Everything else is neutral. Components consume these
+   tokens and never hard-code hex values. Theme = data-theme on <html>
+   (the .dark class is kept in sync for older selectors). */
+:root,
+:root[data-theme="light"] {
   color-scheme: light;
-  --background: #f8fafc;
+  --background: #f6f8fb;
   --surface: #ffffff;
-  --surface-elevated: #f8fafc;
-  --foreground: #0f172a;
-  --foreground-secondary: #475569;
-  --foreground-muted: #64748b;
-  --border: #e2e8f0;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --info: #2563eb;
-  --focus-ring: #3b82f6;
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-md: 0 8px 24px rgb(15 23 42 / 0.10);
-  --motion-micro: 160ms;
-  --motion-standard: 220ms;
-  --motion-overlay: 300ms;
-  --ease-standard: cubic-bezier(.2,.8,.2,1);
+  --surface-elevated: #f1f5f9;
+  --foreground: #17212b;
+  --foreground-secondary: #526170;
+  --foreground-muted: #667584;
+  --border: #dce3ea;
+  --divider: #e8edf2;
+
+  --primary: #1d70c9;
+  --primary-hover: #175ba5;
+  --primary-contrast: #ffffff;
+  --focus-ring: #1d70c9;
+
+  --success: #087d35;
+  --success-soft: #e9fbef;
+  --success-text: #08652d;
+  --danger: #c92d12;
+  --danger-soft: #fff0ec;
+  --danger-text: #a52310;
+  --info: #1d70c9;
+  --info-soft: #eaf4ff;
+  --info-text: #145a9e;
+  /* No amber in the palette: "warning" is neutral and always paired with text/icon. */
+  --warning: #526170;
+
+  --disabled-bg: #e9edf1;
+  --disabled-text: #8a96a3;
+
+  --shadow-sm: 0 1px 2px rgb(23 33 43 / 0.06);
+  --shadow-md: 0 8px 24px rgb(23 33 43 / 0.10);
+
+  /* Brand panel (home hero, sign-in / sign-up): navy in BOTH themes on purpose. */
+  --brand-navy: #0b1220;
+  --brand-blue: #56a5ff;
+  --brand-cyan: #56a5ff;
+
+  /* Motion tokens */
+  --motion-fast: 120ms;
+  --motion-micro: 120ms;
+  --motion-standard: 180ms;
+  --motion-overlay: 240ms;
+  --motion-emphasis: 240ms;
+  --motion-page: 280ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
+:root[data-theme="dark"],
 .dark {
   color-scheme: dark;
-  --background: #0a0f1a;
-  --surface: #111827;
-  --surface-elevated: #172033;
-  --foreground: #f8fafc;
-  --foreground-secondary: #cbd5e1;
-  --foreground-muted: #94a3b8;
-  --border: #334155;
-  --primary: #3b82f6;
-  --primary-hover: #60a5fa;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --info: #60a5fa;
-  --focus-ring: #60a5fa;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.24);
-  --shadow-md: 0 12px 30px rgb(0 0 0 / 0.34);
+  --background: #0b1118;
+  --surface: #121c27;
+  --surface-elevated: #182433;
+  --foreground: #f2f6fa;
+  --foreground-secondary: #b5c1cd;
+  --foreground-muted: #93a3b3;
+  --border: #2a3949;
+  --divider: #233141;
+
+  --primary: #56a5ff;
+  --primary-hover: #78b8ff;
+  --primary-contrast: #0b1118;
+  --focus-ring: #78b8ff;
+
+  --success: #0bda51;
+  --success-soft: #102b20;
+  --success-text: #79f0a1;
+  --danger: #ff654a;
+  --danger-soft: #351a18;
+  --danger-text: #ff9a89;
+  --info: #56a5ff;
+  --info-soft: #122a42;
+  --info-text: #8cc5ff;
+  --warning: #b5c1cd;
+
+  --disabled-bg: #202b36;
+  --disabled-text: #748292;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.30);
+  --shadow-md: 0 12px 30px rgb(0 0 0 / 0.40);
 }
 
 * { box-sizing: border-box; }
@@ -51,8 +95,7 @@
 html {
   background: var(--background);
   color: var(--foreground);
-  transition:
-    background-color var(--motion-standard) var(--ease-standard),
+  transition: background-color var(--motion-standard) var(--ease-standard),
     color var(--motion-standard) var(--ease-standard);
 }
 
@@ -66,6 +109,8 @@ body {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+::selection { background: var(--info-soft); color: var(--info-text); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

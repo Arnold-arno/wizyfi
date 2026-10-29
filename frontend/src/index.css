@@ -1,4 +1,4 @@
-/* Semantic theme tokens (light + .dark). Must come first. */
+/* Semantic theme tokens (light + dark). Must come first. */
 @import "./styles/theme-foundation.css";
 
 @tailwind base;
@@ -6,33 +6,51 @@
 @tailwind utilities;
 
 :root {
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
-html,
-body,
-#root {
-  min-height: 100%;
-  margin: 0;
-}
+html, body, #root { min-height: 100%; margin: 0; }
+body { min-width: 320px; min-height: 100vh; line-height: 1.5; }
+button, input, textarea, select { font: inherit; }
+img { max-width: 100%; }
 
-body {
-  min-width: 320px;
-  min-height: 100vh;
-}
+/* ---- Motion (motion spec): opacity/transform only, shared tokens ---- */
+@keyframes wz-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wz-rise-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes wz-slide-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes wz-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+@layer components {
+  .wz-page { animation: wz-rise-in var(--motion-page) var(--ease-enter) both; }
+  .wz-overlay { animation: wz-fade-in var(--motion-emphasis) var(--ease-enter) both; }
+  .wz-dialog { animation: wz-rise-in var(--motion-emphasis) var(--ease-enter) both; }
+  .wz-drawer { animation: wz-slide-in var(--motion-emphasis) var(--ease-enter) both; }
+  .wz-skeleton {
+    background: linear-gradient(90deg, var(--border) 25%, var(--divider) 50%, var(--border) 75%);
+    background-size: 200% 100%;
+    animation: wz-shimmer 1.4s linear infinite;
+  }
+
+  /* Brand panel: deep navy, restrained blue glow and a faint network-dot grid. */
+  .wz-brand-panel {
+    position: relative;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 18% 14%, rgb(29 112 201 / 0.40), transparent 46%),
+      radial-gradient(circle at 88% 92%, rgb(86 165 255 / 0.20), transparent 42%),
+      var(--brand-navy);
+  }
+  .wz-brand-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: radial-gradient(rgb(255 255 255 / 0.10) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+  }
 }

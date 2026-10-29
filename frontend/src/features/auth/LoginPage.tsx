@@ -1,13 +1,12 @@
-// Sign-in (routes /login and /sign-in). CHANGED (Round 17): split-screen shell,
-// show-password control, link to sign-up, and post-login goes to /start (which
-// decides dashboard / admin / onboarding) instead of "/", now the public home.
-//
-// Not included on purpose: "Forgot password" and provider buttons — the backend
-// has no reset endpoint or OAuth yet, and the spec says never show inactive options.
+// Sign-in (routes /login and /sign-in). Post-login goes to /start, which decides
+// dashboard / admin / onboarding. No "forgot password" or provider buttons yet:
+// the backend has no reset endpoint or OAuth, and inactive options must not be shown.
 
+import { AlertCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Field } from "../../components/ui/Field";
+import { PasswordField } from "../../components/ui/PasswordField";
 import { btnPrimary, inputClass } from "../../components/ui/styles";
 import { ApiError } from "../../lib/api/client";
 import { authApi } from "../../lib/api/authApi";
@@ -21,7 +20,6 @@ export function LoginPage() {
   const hasToken = useSessionStore((s) => s.accessToken !== null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [show, setShow] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,29 +56,24 @@ export function LoginPage() {
       footer={
         <p>
           New to Wizyfi Bridge?{" "}
-          <Link to="/sign-up" className="font-medium text-[var(--primary)] hover:underline">
+          <Link to="/sign-up" className="font-medium text-[var(--primary)] underline-offset-2 hover:underline">
             Create an account
           </Link>
         </p>
       }
     >
-      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate aria-busy={pending}>
+        {error && (
+          <div role="alert" className="flex items-start gap-2 rounded-md border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2.5 text-sm text-[var(--danger-text)]">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        )}
         <Field label="Email">
           <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
         </Field>
-        <Field label="Password">
-          <input type={show ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
-        </Field>
-        <label className="flex items-center gap-2 text-sm text-[var(--foreground-secondary)]">
-          <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
-          Show password
-        </label>
-        {error && (
-          <p role="alert" className="text-sm text-[var(--danger)]">
-            {error}
-          </p>
-        )}
-        <button type="submit" className={btnPrimary} disabled={pending || !email || !password}>
+        <PasswordField label="Password" autoComplete="current-password" value={password} onChange={setPassword} />
+        <button type="submit" className={`${btnPrimary} w-full`} disabled={pending || !email || !password}>
           {pending ? "Signing in…" : "Sign in"}
         </button>
       </form>
