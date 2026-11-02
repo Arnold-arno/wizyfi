@@ -11,5 +11,6 @@ redis==5.0.8
 gunicorn==22.0.0
 cryptography==43.0.1
 djangorestframework-camel-case==1.4.2
+psycopg2-binary==2.9.9
 pytest==8.3.3
 pytest-django==4.9.0
