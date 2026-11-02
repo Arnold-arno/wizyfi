@@ -162,6 +162,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Only serves django-admin's own static assets — the product frontend is a
 # separately deployed React app and never touches this.
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 LOG_LEVEL = env("LOG_LEVEL", default="INFO")
 LOGGING = {
