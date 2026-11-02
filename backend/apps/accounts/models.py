@@ -1,8 +1,8 @@
 # apps/accounts/models.py
 #
 # Custom UUID-based staff User model — deliberately separate from
-# apps.customers.Customer (Wi-Fi end-users), per Expectations_and_workflow:
-# "customers (Wi-Fi end-users, fully separate from staff Users)".
+# apps.customers.Customer (Wi-Fi end-users).
+# CHANGED (Round 20): email_verified_at, phone, country.
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
@@ -19,6 +19,13 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)  # Django admin access only
     last_login_at = models.DateTimeField(null=True, blank=True)
+
+    # Set once, when the person proves they control the address. Changing the
+    # email must clear it (and the verification token embeds the address, so an
+    # old link can never verify a new address).
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    phone = models.CharField(max_length=32, blank=True)
+    country = models.CharField(max_length=2, blank=True, help_text="ISO 3166-1 alpha-2, e.g. UG")
 
     objects = UserManager()
 
