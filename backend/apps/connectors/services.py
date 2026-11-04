@@ -1,13 +1,13 @@
 # apps/connectors/services.py
 #
-# doc10 "Service-Layer Rule": views translate HTTP into validated
-# command/query inputs; domain services perform business rules; adapters
-# perform network I/O. This module is the seam between Router/Connector
-# persistence and the adapter layer.
+# doc10 "Service-Layer Rule": views translate HTTP into validated command/query
+# inputs; domain services perform business rules; adapters perform network I/O.
+# This module is the seam between Router/Connector persistence and the adapter layer.
+# CHANGED (Round 22): authorize_session.
 
 from django.utils import timezone
 
-from .adapters.base import RouterAdapter
+from .adapters.base import RouterAdapter, SessionGrant
 from .adapters.registry import get_adapter_class
 from .models import Router
 
@@ -33,8 +33,13 @@ def run_health_check(router: Router):
 
 
 def disconnect_session(router: Router, session_identifier: str):
-    """Used by both the ordinary Live Connections flow and Hard Logout
-    execution (apps.access, next round) — kept here as the single place
-    that talks to the adapter for a disconnect command."""
+    """Single place that talks to the adapter for a disconnect command
+    (Live Connections, Hard Logout and the expiry sweep all use it)."""
     adapter = get_adapter_for_router(router)
     return adapter.disconnect_session(session_identifier)
+
+
+def authorize_session(router: Router, grant: SessionGrant):
+    """Single place that asks a router to let a device on (captive portal)."""
+    adapter = get_adapter_for_router(router)
+    return adapter.authorize_session(grant)

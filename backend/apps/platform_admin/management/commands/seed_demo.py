@@ -90,6 +90,7 @@ class Command(BaseCommand):
         self.password = password
         self.rows = []  # (role, email, organization)
         self.samples = []  # (organization, plan name, [codes])
+        self.links = []  # (organization, portal URL path)
 
         with transaction.atomic():
             admin = self._user("admin", "Platform Admin")
@@ -145,6 +146,8 @@ class Command(BaseCommand):
         connector.save()
         router = Router.objects.create(place=place, connector=connector, name="Router 1", identity="192.0.2.10", status="ONLINE", last_seen_at=now)
 
+        self.links.append((org.name, f"/portal/{place.id}?router={router.id}&mac=02:00:5E:AA:BB:01"))
+
         plans = {}
         for name, price, minutes, status, extras in ACCESS_PLANS:
             plans[name] = AccessPlan.objects.create(
@@ -193,4 +196,7 @@ class Command(BaseCommand):
             w(f"{role:<16}{email:<46}{org}")
         for org, plan, codes in self.samples:
             w(f"\nSample '{plan}' vouchers for {org} (shown once; test them on the portal): {', '.join(codes)}")
+        for org, link in self.links:
+            w(f"\nCaptive portal for {org} (open on the frontend, then enter a sample voucher): {link}")
+        w("\nKeep dashboard numbers live without Celery:  python manage.py run_maintenance --every 30")
         w("\nSign in at /sign-in. Platform admin lands on /admin; clients land on /app/dashboard.")

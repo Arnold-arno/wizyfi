@@ -12,7 +12,7 @@
 
 from datetime import datetime, timezone
 
-from .base import ActiveSession, CommandOutcome, HealthCheckResult, RouterAdapter
+from .base import ActiveSession, CommandOutcome, HealthCheckResult, RouterAdapter, SessionGrant
 
 
 class WizyfiAdapter(RouterAdapter):
@@ -39,3 +39,10 @@ class WizyfiAdapter(RouterAdapter):
                 error_message="session_identifier is required.",
             )
         return CommandOutcome(success=True)  # idempotent by construction
+
+    def authorize_session(self, grant: SessionGrant) -> CommandOutcome:
+        if not self.credentials.get("api_key"):
+            return CommandOutcome(False, "CONNECTOR_ERROR", "Missing api_key for this Wizyfi connector.")
+        if not grant.session_identifier or not grant.mac_address:
+            return CommandOutcome(False, "VALIDATION_ERROR", "session_identifier and mac_address are required.")
+        return CommandOutcome(success=True)  # simulated

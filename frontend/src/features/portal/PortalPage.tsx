@@ -4,7 +4,9 @@
 //
 // Honesty rules:
 //  * no payments exist yet, so plans are informational: access comes from a voucher;
-//  * "Voucher accepted" only after the backend returns a session;
+//  * "Voucher accepted" only after the backend returns a session, and (Round 22) the backend
+//    only returns one after the router has been told to let the device on; if it could not,
+//    the server answers 503 and the voucher is NOT used up;
 //  * without router + mac the form is disabled and says why (never a silent failure);
 //  * a voucher code is never stored in the browser.
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -35,7 +37,7 @@ function PlanCard({ plan }: { plan: PortalPlan }) {
   const untilReset = plan.validityMode === "UNTIL_NEXT_RESET";
   const limits = [
     plan.dataCapMb ? `${(plan.dataCapMb / 1024).toFixed(1)} GB data` : "Unlimited data",
-    plan.maxConcurrentDevices ? `${plan.maxConcurrentDevices} ${plan.maxConcurrentDevices === 1 ? "device" : "devices"}` : null,
+    plan.maxConcurrentDevices && plan.maxConcurrentDevices > 1 ? `Up to ${plan.maxConcurrentDevices} devices` : "1 device",
   ].filter(Boolean);
   return (
     <li className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">

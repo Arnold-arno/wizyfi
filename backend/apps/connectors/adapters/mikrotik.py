@@ -1,21 +1,23 @@
 # apps/connectors/adapters/mikrotik.py
 #
 # Stub adapter: implements the full RouterAdapter contract so the rest of
-# the system (views, services, Hard Logout execution) can be built and
-# tested against a real interface shape, without requiring a live
-# RouterOS device in every dev/CI environment. Matches
-# Expectations_and_workflow: "MikroTik stub adapter implemented".
+# the system (views, services, portal, Hard Logout) can be built and tested
+# against a real interface shape, without a live RouterOS device in every
+# dev/CI environment. Simulated results only; nothing is sent to a router.
 #
-# TODO (real integration, next round): replace the simulated bodies below
-# with actual RouterOS API calls (e.g. via the `librouteros` package) —
-# /ip/hotspot/active for list_active_sessions, /ip/hotspot/active/remove
-# for disconnect_session, a lightweight /system/resource print for
-# health_check. Keep the public method signatures identical so nothing
-# above this layer needs to change.
+# TODO (real integration): replace the simulated bodies with RouterOS API calls
+# (e.g. `librouteros`):
+#   health_check          -> /system/resource print
+#   list_active_sessions  -> /ip/hotspot/active print
+#   disconnect_session    -> /ip/hotspot/active remove  (+ remove the binding below)
+#   authorize_session     -> /ip/hotspot/ip-binding add mac-address=<mac> type=bypassed comment=<session>
+#                            or /ip/hotspot/user add name=<session> mac-address=<mac>
+#                            limit-uptime=<until expires_at> limit-bytes-total=<data_cap_mb MB>
+# Keep the public method signatures identical so nothing above this layer changes.
 
 from datetime import datetime, timezone
 
-from .base import ActiveSession, CommandOutcome, HealthCheckResult, RouterAdapter
+from .base import ActiveSession, CommandOutcome, HealthCheckResult, RouterAdapter, SessionGrant
 
 
 class MikroTikAdapter(RouterAdapter):
@@ -29,7 +31,6 @@ class MikroTikAdapter(RouterAdapter):
                 checked_at=datetime.now(timezone.utc),
                 detail="Missing credentials for this connector.",
             )
-        # Simulated success — no live socket opened in this stub.
         return HealthCheckResult(
             healthy=True,
             latency_ms=1,
@@ -38,8 +39,7 @@ class MikroTikAdapter(RouterAdapter):
         )
 
     def list_active_sessions(self) -> list[ActiveSession]:
-        # Real integration will query /ip/hotspot/active. Returning an
-        # empty list here is the correct "no fake progress" behavior
+        # Returning an empty list is the correct "no fake progress" behavior
         # (doc03 §10 safety rule) rather than inventing sample data.
         return []
 
@@ -50,7 +50,12 @@ class MikroTikAdapter(RouterAdapter):
                 error_code="VALIDATION_ERROR",
                 error_message="session_identifier is required.",
             )
-        # Simulated success. Idempotent by construction: this stub never
-        # reports a "not found" failure for a repeat disconnect, matching
-        # the real adapter's required behavior once implemented.
+        # Idempotent by construction: a repeat disconnect is never a failure.
         return CommandOutcome(success=True)
+
+    def authorize_session(self, grant: SessionGrant) -> CommandOutcome:
+        if not self.credentials.get("username") or not self.credentials.get("password"):
+            return CommandOutcome(False, "CONNECTOR_ERROR", "Missing credentials for this connector.")
+        if not grant.session_identifier or not grant.mac_address:
+            return CommandOutcome(False, "VALIDATION_ERROR", "session_identifier and mac_address are required.")
+        return CommandOutcome(success=True)  # simulated; idempotent by construction

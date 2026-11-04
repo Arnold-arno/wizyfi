@@ -6,6 +6,7 @@
 // the list/detail shapes below only ever carry a masked code, never the
 // plaintext/hash, except immediately after batch generation (see
 // VoucherBatchResult) where the operator must be able to export new codes once.
+// CHANGED (Round 22): batchId (a "set" of vouchers), VoucherSummary.
 
 export type VoucherStatus =
   | "AVAILABLE"
@@ -18,6 +19,7 @@ export interface Voucher {
   id: string;
   planId: string;
   planName: string;
+  batchId: string | null; // vouchers generated together share a batch (a "set")
   maskedCode: string; // e.g. "••••-7F2A" — server pre-masks, never send full code here
   status: VoucherStatus;
   issuedAt: string | null;
@@ -32,7 +34,14 @@ export interface VoucherListParams {
   pageSize?: number;
   status?: VoucherStatus;
   planId?: string;
+  batchId?: string;
   search?: string;
+}
+
+export interface VoucherSummary {
+  total: number;
+  /** Every status is always present (zero-filled). */
+  counts: Array<{ status: VoucherStatus; count: number }>;
 }
 
 export interface VoucherBatchRules {

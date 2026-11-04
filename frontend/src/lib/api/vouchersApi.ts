@@ -2,7 +2,9 @@
 //
 // Endpoints per doc 09 (API Specification):
 //   POST /vouchers/batches   (Generate/revoke)
-//   GET  /vouchers
+//   GET  /vouchers, GET /vouchers/summary
+// CHANGED (Round 22): the plan filter was sent as `plan_id` but the backend filters on
+// `plan`, so it never filtered. Adds batch filter and summary.
 
 import { apiClient } from "./client";
 import type {
@@ -10,6 +12,7 @@ import type {
   VoucherBatchCreateRequest,
   VoucherBatchResult,
   VoucherListParams,
+  VoucherSummary,
   Paginated,
 } from "../../types/voucher";
 
@@ -22,10 +25,13 @@ export const vouchersApi = {
         page: params.page,
         page_size: params.pageSize,
         status: params.status,
-        plan_id: params.planId,
+        plan: params.planId,
+        batch_id: params.batchId,
         search: params.search,
       },
     }),
+
+  summary: (planId?: string) => apiClient.get<VoucherSummary>(`${BASE}/summary/`, { params: { plan: planId } }),
 
   retrieve: (id: string) => apiClient.get<Voucher>(`${BASE}/${id}/`),
 

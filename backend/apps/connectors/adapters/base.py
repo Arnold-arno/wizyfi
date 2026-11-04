@@ -4,6 +4,10 @@
 # doc10: "This prevents vendor-specific protocol details from leaking
 # into API views or React." Every vendor adapter implements this same
 # interface; views/services never import a vendor-specific module.
+#
+# CHANGED (Round 22): authorize_session + SessionGrant. Until now redeeming a
+# voucher only wrote a database row; no adapter was ever told to let the device
+# onto the network.
 
 from __future__ import annotations
 
@@ -26,6 +30,18 @@ class ActiveSession:
     mac_address: str
     ip_address: str | None
     started_at: datetime
+
+
+@dataclass
+class SessionGrant:
+    """What the router needs to let one device on: who (MAC), until when, and the
+    data allowance. The adapter translates this into its vendor's commands."""
+
+    session_identifier: str
+    mac_address: str
+    expires_at: datetime | None
+    data_cap_mb: int | None = None  # None = no data limit
+    ip_address: str | None = None
 
 
 @dataclass
@@ -65,3 +81,14 @@ class RouterAdapter(ABC):
         """Used by both the ordinary Live Connections disconnect flow and
         Hard Logout execution. Must be idempotent: disconnecting an
         already-disconnected session is a success, not an error."""
+
+    def authorize_session(self, grant: SessionGrant) -> CommandOutcome:
+        """Let the device in until grant.expires_at, within grant.data_cap_mb.
+        Must be idempotent (authorizing an already-authorized device succeeds).
+        NOT abstract on purpose: an adapter that has not implemented it reports
+        UNSUPPORTED, so the portal refuses to claim access it cannot give."""
+        return CommandOutcome(
+            success=False,
+            error_code="UNSUPPORTED",
+            error_message="This integration cannot grant network access yet.",
+        )
