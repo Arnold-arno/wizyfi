@@ -39,6 +39,21 @@ def restore_agent(organization: Organization, *, actor) -> Organization:
 
 
 @transaction.atomic
+def rename_agent(organization: Organization, *, new_name: str, actor) -> Organization:
+    organization = Organization.objects.select_for_update().get(id=organization.id)
+    old_name = organization.name
+    if old_name == new_name:
+        return organization
+    organization.name = new_name
+    organization.save(update_fields=["name", "updated_at"])
+    _record_activity(
+        organization, actor, "agent.renamed",
+        f"Organization renamed from '{old_name}' to '{new_name}'.",
+    )
+    return organization
+
+
+@transaction.atomic
 def change_agent_plan(organization: Organization, *, plan: Plan, actor) -> OrganizationSubscription:
     subscription, created = OrganizationSubscription.objects.select_for_update().get_or_create(
         organization=organization, defaults={"plan": plan, "changed_by": actor}
