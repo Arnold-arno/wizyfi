@@ -26,7 +26,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.access.models import Session
-from apps.billing.models import Invoice, InvoiceStatus
+#from apps.billing.models import Invoice, InvoiceStatus
 from apps.common.exceptions import ConflictError
 from apps.common.permissions import IsPlatformStaff
 from apps.connectors.models import Router
