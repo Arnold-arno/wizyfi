@@ -109,3 +109,13 @@ class PlatformActivityEvent(BaseModel):
 
     def __str__(self):
         return self.message
+
+
+# Known vendor codes for platform management and device integrations
+KNOWN_VENDOR_CODES = [
+    ("CISCO", "Cisco"),
+    ("UBIQUITI", "Ubiquiti"),
+    ("MIKROTIK", "MikroTik"),
+    ("ARUBA", "Aruba"),
+    ("RUCKUS", "Ruckus"),
+]
