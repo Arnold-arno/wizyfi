@@ -58,7 +58,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.platform_admin",
     "apps.dashboard",
-    "apps.billing",  # Round 20 (invoices, entitlements); imported by platform_admin/places/connectors
+   # "apps.billing",  # Round 20 (invoices, entitlements); imported by platform_admin/places/connectors
 ]
 
 MIDDLEWARE = [
