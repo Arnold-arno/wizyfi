@@ -1,5 +1,6 @@
-// Route: /app/settings — account, organization (read-only: the API has no update
-// endpoints yet), appearance, and sign-out.
+// Route: /app/settings — account (editable), password, organization (read-only: the API
+// has no organization update endpoint yet), appearance and sign-out.
+// CHANGED (Round 23): real profile editing and change-password (backend Round 20).
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../components/ui/PageHeader";
@@ -12,6 +13,8 @@ import { formatDateTime } from "../../../lib/format";
 import { queryClient } from "../../../lib/queryClient";
 import { getPreference, setPreference, type ThemePreference } from "../../../lib/theme";
 import { useSessionStore } from "../../../state/sessionStore";
+import { ChangePasswordForm } from "../components/ChangePasswordForm";
+import { ProfileForm } from "../components/ProfileForm";
 
 const ROLE: Record<string, string> = { OWNER: "Owner", ADMIN: "Admin", AGENT: "Agent", READ_ONLY: "Read-only operator" };
 const THEMES: Array<{ value: ThemePreference; label: string; hint: string }> = [
@@ -57,13 +60,12 @@ export function SettingsPage() {
       <PageHeader title="Settings" description="Your account, your organization and how Wizyfi Bridge looks for you." />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Your account">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-            <Row k="Name">{user?.fullName ?? "—"}</Row>
-            <Row k="Email">{user?.email ?? "—"}</Row>
-            <Row k="Member since">{user ? formatDateTime(user.createdAt) : "—"}</Row>
-          </dl>
-          <p className="mt-4 text-xs text-[var(--foreground-muted)]">Changing your name, email or password isn't available yet.</p>
+        <Panel title="Your account" description={user ? `Member since ${formatDateTime(user.createdAt)}` : undefined}>
+          <ProfileForm />
+        </Panel>
+
+        <Panel title="Password">
+          <ChangePasswordForm />
         </Panel>
 
         <Panel title="Organization">
@@ -82,25 +84,27 @@ export function SettingsPage() {
           <p className="mt-4 text-xs text-[var(--foreground-muted)]">Renaming the organization and inviting teammates aren't available yet.</p>
         </Panel>
 
-        <Panel title="Appearance" description="Saved on this device.">
-          <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2">
-            {THEMES.map((t) => (
-              <button
-                key={t.value} type="button" role="radio" aria-checked={theme === t.value} onClick={() => choose(t.value)}
-                className={`rounded-lg border p-3 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${
-                  theme === t.value ? "border-[var(--primary)] bg-[var(--info-soft)] text-[var(--info-text)]" : "border-[var(--border)] hover:bg-[var(--surface-elevated)]"
-                }`}
-              >
-                <span className="block font-semibold">{t.label}</span>
-                <span className="block text-xs text-[var(--foreground-muted)]">{t.hint}</span>
-              </button>
-            ))}
-          </div>
-        </Panel>
+        <div className="flex flex-col gap-4">
+          <Panel title="Appearance" description="Saved on this device.">
+            <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value} type="button" role="radio" aria-checked={theme === t.value} onClick={() => choose(t.value)}
+                  className={`rounded-lg border p-3 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${
+                    theme === t.value ? "border-[var(--primary)] bg-[var(--info-soft)] text-[var(--info-text)]" : "border-[var(--border)] hover:bg-[var(--surface-elevated)]"
+                  }`}
+                >
+                  <span className="block font-semibold">{t.label}</span>
+                  <span className="block text-xs text-[var(--foreground-muted)]">{t.hint}</span>
+                </button>
+              ))}
+            </div>
+          </Panel>
 
-        <Panel title="Session" description="Signing out also revokes your refresh token on the server.">
-          <button type="button" className={btnSecondary} onClick={signOut}>Sign out</button>
-        </Panel>
+          <Panel title="Session" description="Signing out also revokes your refresh token on the server.">
+            <button type="button" className={btnSecondary} onClick={signOut}>Sign out</button>
+          </Panel>
+        </div>
       </div>
     </div>
   );

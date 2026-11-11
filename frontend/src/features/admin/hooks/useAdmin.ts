@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "../../../lib/api/adminApi";
-import type { AgentDetail, GrowthRange, PlatformPlanInput } from "../../../types/admin";
+import type { AgentDetail, AgentListParams, GrowthRange, PlatformPlanInput } from "../../../types/admin";
 
-// NOTE: moved from features/admin/hooks/useAdmin.ts — same path, same exports,
-// plus the range-aware dashboard hook and per-agent activity.
+// CHANGED (Round 23): useAgents takes server-side params; useRenameAgent.
 
 export const usePlatformDashboard = (range: GrowthRange = "30d") =>
   useQuery({
@@ -13,7 +12,12 @@ export const usePlatformDashboard = (range: GrowthRange = "30d") =>
     placeholderData: (prev) => prev, // keep the charts on screen while a new range loads
   });
 
-export const useAgents = () => useQuery({ queryKey: ["admin", "agents"], queryFn: adminApi.agents });
+export const useAgents = (params: AgentListParams) =>
+  useQuery({
+    queryKey: ["admin", "agents", params],
+    queryFn: () => adminApi.agents(params),
+    placeholderData: (prev) => prev, // keep rows while paging/searching
+  });
 
 export const useAgent = (id: string | undefined) =>
   useQuery({ queryKey: ["admin", "agent", id], queryFn: () => adminApi.agent(id as string), enabled: Boolean(id) });
@@ -53,6 +57,7 @@ function useAgentMutation<V>(fn: (id: string, v: V) => Promise<AgentDetail>) {
 export const useSuspendAgent = () => useAgentMutation<string>(adminApi.suspendAgent);
 export const useRestoreAgent = () => useAgentMutation<void>((id) => adminApi.restoreAgent(id));
 export const useChangeAgentPlan = () => useAgentMutation<string>(adminApi.changeAgentPlan);
+export const useRenameAgent = () => useAgentMutation<string>(adminApi.renameAgent);
 
 export function useSavePlan() {
   const qc = useQueryClient();

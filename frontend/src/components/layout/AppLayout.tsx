@@ -1,6 +1,8 @@
+// CHANGED (Round 23): shows the email-verification banner.
 import { useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useActiveMembership } from "../../state/sessionStore";
+import { EmailVerificationBanner } from "../auth/EmailVerificationBanner";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 
@@ -19,6 +21,7 @@ export function AppLayout() {
       <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onMenu={() => setNavOpen(true)} />
+        <EmailVerificationBanner />
         {suspended && (
           <div role="alert" className="border-b border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-text)]">
             This organization is suspended. Access is paused until the platform team restores it.

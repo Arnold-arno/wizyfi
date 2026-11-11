@@ -1,8 +1,10 @@
 // Sign-in (routes /login and /sign-in). Post-login goes to /start, which decides
-// dashboard / admin / onboarding. No "forgot password" or provider buttons yet:
-// the backend has no reset endpoint or OAuth, and inactive options must not be shown.
+// dashboard / admin / onboarding. No provider buttons yet: OAuth isn't built, and
+// inactive options must not be shown.
+// CHANGED (Round 23): "Forgot password?" link (the backend reset flow now exists) and an
+// optional notice passed in navigation state (e.g. after a password change).
 
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Info } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Field } from "../../components/ui/Field";
@@ -22,6 +24,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const notice = (location.state as { notice?: string } | null)?.notice;
 
   if (hasToken) return <Navigate to="/start" replace />;
 
@@ -63,6 +66,12 @@ export function LoginPage() {
       }
     >
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate aria-busy={pending}>
+        {notice && !error && (
+          <div role="status" className="flex items-start gap-2 rounded-md border border-[var(--info)] bg-[var(--info-soft)] px-3 py-2.5 text-sm text-[var(--info-text)]">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{notice}</span>
+          </div>
+        )}
         {error && (
           <div role="alert" className="flex items-start gap-2 rounded-md border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2.5 text-sm text-[var(--danger-text)]">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -72,7 +81,12 @@ export function LoginPage() {
         <Field label="Email">
           <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
         </Field>
-        <PasswordField label="Password" autoComplete="current-password" value={password} onChange={setPassword} />
+        <div className="flex flex-col gap-1.5">
+          <PasswordField label="Password" autoComplete="current-password" value={password} onChange={setPassword} />
+          <Link to="/forgot-password" className="self-end text-xs font-medium text-[var(--primary)] underline-offset-2 hover:underline">
+            Forgot password?
+          </Link>
+        </div>
         <button type="submit" className={`${btnPrimary} w-full`} disabled={pending || !email || !password}>
           {pending ? "Signing in…" : "Sign in"}
         </button>

@@ -1,17 +1,17 @@
 // src/lib/api/client.ts
 //
-// CHANGED from the Round-10 reference client. Three real gaps fixed:
-//  1. X-Organization-Id is now sent. The backend's OrganizationScopedMixin
-//     resolves the tenant from this header; without it every org-scoped
-//     endpoint answers 403 (see apps/common/views.py).
-//  2. Expired access tokens (15 min) are refreshed once and the request
-//     retried. Refresh is single-flight because the backend rotates and
-//     blacklists refresh tokens: two parallel refreshes would invalidate
-//     each other.
-//  3. A network failure becomes a normal ApiError instead of a raw TypeError.
+// CHANGED (Round 23) — one real bug fixed:
+//  The 401 -> refresh -> retry path was skipped for EVERY path under /auth/. That
+//  includes /auth/me/, which the app calls on each page load. Access tokens live
+//  15 minutes, so after that a reload got a 401 from /auth/me/, no refresh was tried,
+//  and the session was cleared: people were signed out on every reload after 15 min.
+//  Now only the genuinely unauthenticated endpoints (login, refresh, register, reset,
+//  verify, logout) skip the refresh; signed-in calls under /auth/ (me, change-password,
+//  resend-verification) refresh like everything else.
 //
-// Public surface (get/post/patch/delete, ApiError) is unchanged, so
-// accessPlansApi / vouchersApi keep working as-is.
+// Earlier rounds (unchanged): X-Organization-Id is sent for tenant-scoped paths; refresh is
+// single-flight (refresh tokens rotate and are blacklisted, so parallel refreshes would
+// invalidate each other); a network failure becomes a normal ApiError.
 
 import {
   clearSession,
@@ -53,6 +53,17 @@ type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
 // Endpoints that are not tenant-scoped on the server.
 const NO_ORG_PREFIXES = ["/auth/", "/platform-admin/", "/organizations/"];
+
+// A 401 from these is a real answer (wrong password, bad token), never an expired
+// session, so it must not trigger a token refresh.
+const NO_REFRESH_PREFIXES = [
+  "/auth/login/",
+  "/auth/refresh/",
+  "/auth/register/",
+  "/auth/password-reset/", // also covers /confirm/
+  "/auth/verify-email/",
+  "/auth/logout/",
+];
 
 function buildQuery(params?: RequestOptions["params"]): string {
   if (!params) return "";
@@ -125,7 +136,7 @@ async function request<T>(
   try {
     res = await send(method, path, body, options, getAccessToken());
 
-    if (res.status === 401 && !path.startsWith("/auth/")) {
+    if (res.status === 401 && !NO_REFRESH_PREFIXES.some((p) => path.startsWith(p))) {
       const fresh = await refreshAccessToken();
       if (fresh) {
         res = await send(method, path, body, options, fresh);

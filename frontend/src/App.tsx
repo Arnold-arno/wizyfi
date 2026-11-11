@@ -1,8 +1,10 @@
 // Wizyfi routing configuration.
+// CHANGED (Round 23): + /forgot-password, /reset-password, /verify-email (public).
 // CHANGED (Round 19): + /app/notifications, /app/audit, /app/settings.
-// CHANGED (Round 18): /app/users and /app/network-cycles are now real pages
-// (no more ModulePlaceholder); 404 page styled with tokens.
+// CHANGED (Round 18): /app/users and /app/network-cycles are real pages.
 // Route order note: hard-logout/recurring must stay ABOVE hard-logout/:eventId.
+// NOTE: if you applied tools/apply_round21_patches.py, the /portal/:placeId route and its
+// PortalPage import are present in your App.tsx. This file includes them.
 
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 
@@ -27,9 +29,12 @@ import { AuditLogPage } from "./features/audit/pages/AuditLogPage";
 import { NotificationsPage } from "./features/notifications/NotificationsPage";
 import { SettingsPage } from "./features/settings/pages/SettingsPage";
 
+import { ForgotPasswordPage } from "./features/auth/ForgotPasswordPage";
 import { LoginPage } from "./features/auth/LoginPage";
 import { OnboardingPage } from "./features/auth/OnboardingPage";
+import { ResetPasswordPage } from "./features/auth/ResetPasswordPage";
 import { SignUpPage } from "./features/auth/SignUpPage";
+import { VerifyEmailPage } from "./features/auth/VerifyEmailPage";
 
 import { ConnectionsPage } from "./features/connections/pages/ConnectionsPage";
 import { NetworkCyclesPage } from "./features/cycles/pages/NetworkCyclesPage";
@@ -40,6 +45,7 @@ import { PlaceDetailPage } from "./features/places/pages/PlaceDetailPage";
 import { PlaceFormPage } from "./features/places/pages/PlaceFormPage";
 import { PlacesPage } from "./features/places/pages/PlacesPage";
 
+import { PortalPage } from "./features/portal/PortalPage";
 import { HomePage } from "./features/public/HomePage";
 import { WizyfiProductPage } from "./features/public/WizyfiProductPage";
 import { SalesPage } from "./features/sales/pages/SalesPage";
@@ -62,6 +68,12 @@ export default function App() {
       <Route path="/sign-in" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/sign-up" element={<SignUpPage />} />
+      {/* Account recovery + verification: public, the emailed link is the credential */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      {/* Captive portal: public, opened from the router's sign-in redirect */}
+      <Route path="/portal/:placeId" element={<PortalPage />} />
 
       {/* Everything below needs a signed-in user */}
       <Route element={<RequireAuth />}>

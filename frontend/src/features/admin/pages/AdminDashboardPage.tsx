@@ -1,13 +1,13 @@
-// Route: /admin. Answers "How is the platform performing?" — never "what is
-// happening inside every agent's network?" (supadmin.pdf §3). Every figure is
-// computed server-side from account metadata and counts.
+// Route: /admin. Answers "How is the platform performing?" — never "what is happening
+// inside every agent's network?" (supadmin.pdf §3). Every figure is computed server-side
+// from account metadata and counts.
+// CHANGED (Round 23): networks = routers, places counted separately, USD revenue,
+// active/suspended split (backend Round 20).
 //
-// Spec items with NO backend data yet, deliberately NOT drawn as numbers (no
-// invented figures): collected revenue / outstanding / overdue fees, expiring
-// accounts and platform availability. They are listed honestly in the
-// "Not available yet" panel instead.
+// Spec items with NO backend data yet, deliberately NOT drawn as numbers: collected revenue,
+// expiring accounts, platform availability. Listed in "Not available yet" instead.
 
-import { Banknote, Network, RefreshCw, Users } from "lucide-react";
+import { Banknote, Network, RefreshCw, Users, MapPin } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { LineChart } from "../../../components/charts/LineChart";
@@ -19,7 +19,7 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { StatCard } from "../../../components/ui/StatCard";
 import { btnSecondary } from "../../../components/ui/styles";
 import { firstName, greeting } from "../../../lib/greeting";
-import { formatDateTime, formatNumber, formatTime } from "../../../lib/format";
+import { formatDateTime, formatMoney, formatNumber, formatTime } from "../../../lib/format";
 import { useSessionStore } from "../../../state/sessionStore";
 import type { GrowthPoint, GrowthRange } from "../../../types/admin";
 import { usePlatformActivity, usePlatformDashboard } from "../hooks/useAdmin";
@@ -38,7 +38,7 @@ const toPoints = (g: GrowthPoint[]) => g.map((p) => ({ label: label(p.date), val
 const sum = (g: GrowthPoint[]) => g.reduce((a, p) => a + p.new, 0);
 
 const NOT_YET = [
-  "Collected revenue, outstanding and overdue fees",
+  "Collected revenue and overdue fees over time",
   "Expiring accounts",
   "Platform availability",
   "Disconnections over time",
@@ -50,8 +50,10 @@ export function AdminDashboardPage() {
   const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = usePlatformDashboard(range);
   const activity = usePlatformActivity(1);
 
-  const activePct =
-    data && data.totalAgents > 0 ? `${((data.activeAgents / data.totalAgents) * 100).toFixed(1)}% active` : undefined;
+  const activeHint =
+    data && data.totalAgents > 0
+      ? `${formatNumber(data.activeAgents)} active (${((data.activeAgents / data.totalAgents) * 100).toFixed(1)}%)`
+      : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,12 +83,12 @@ export function AdminDashboardPage() {
       {data && (
         <>
           <section aria-label="Platform figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <StatCard label="Total agents" value={formatNumber(data.totalAgents)} hint={`+${formatNumber(data.newAgentsThisMonth)} this month`} icon={Users} to="/admin/agents" />
-            <StatCard label="Active agents" value={formatNumber(data.activeAgents)} hint={activePct} />
-            <StatCard label="Suspended accounts" value={formatNumber(data.suspendedAgents)} />
-            <StatCard label="Connected networks" value={formatNumber(data.totalPlaces)} hint={`+${formatNumber(data.newPlacesThisMonth)} this month · count only, contents are private`} icon={Network} />
+            <StatCard label="Total agents" value={formatNumber(data.totalAgents)} hint={[`+${formatNumber(data.newAgentsThisMonth)} this month`, activeHint].filter(Boolean).join(" · ")} icon={Users} to="/admin/agents" />
+            <StatCard label="Suspended accounts" value={formatNumber(data.suspendedAgents)} hint="Locked out until restored" />
+            <StatCard label="Places" value={formatNumber(data.totalPlaces)} hint={`+${formatNumber(data.newPlacesThisMonth)} this month · count only`} icon={MapPin} />
+            <StatCard label="Networks" value={formatNumber(data.totalNetworks)} hint={`Routers · +${formatNumber(data.newNetworksThisMonth)} this month`} icon={Network} />
             <StatCard label="Active sessions" value={formatNumber(data.totalActiveSessions)} hint="Platform-wide total" />
-            <StatCard label="Expected monthly revenue" value={formatNumber(data.expectedMonthlyRevenue)} hint="From active agents' plans. Not collected payments." icon={Banknote} to="/admin/plans" />
+            <StatCard label="Expected monthly revenue" value={formatMoney(data.expectedMonthlyRevenue, "USD")} hint="From active agents' plans. Not collected payments." icon={Banknote} to="/admin/plans" />
           </section>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -98,8 +100,8 @@ export function AdminDashboardPage() {
             <Panel title="Agents over time" description={`${formatNumber(sum(data.agentGrowth))} joined in this period`}>
               <LineChart points={toPoints(data.agentGrowth)} ariaLabel="Total agent accounts over time" valueLabel="agents" />
             </Panel>
-            <Panel title="Connected networks over time" description={`${formatNumber(sum(data.networkGrowth))} added in this period · aggregate only`}>
-              <LineChart points={toPoints(data.networkGrowth)} ariaLabel="Total connected networks over time" valueLabel="networks" />
+            <Panel title="Networks over time" description={`${formatNumber(sum(data.networkGrowth))} routers added in this period · aggregate only`}>
+              <LineChart points={toPoints(data.networkGrowth)} ariaLabel="Total networks (routers) over time" valueLabel="networks" />
             </Panel>
           </div>
 
@@ -112,7 +114,7 @@ export function AdminDashboardPage() {
               {activity.isLoading && <Skeleton className="h-20 w-full" />}
               {activity.data && activity.data.results.length === 0 && (
                 <p className="py-6 text-center text-sm text-[var(--foreground-secondary)]">
-                  No platform actions yet. Suspensions, restorations and plan changes are recorded here.
+                  No platform actions yet. Suspensions, restorations, renames and plan changes are recorded here.
                 </p>
               )}
               {activity.data && activity.data.results.length > 0 && (
@@ -129,7 +131,7 @@ export function AdminDashboardPage() {
               )}
             </Panel>
 
-            <Panel title="Not available yet" description="These need a billing and monitoring module first, so no numbers are shown.">
+            <Panel title="Not available yet" description="These need a payments and monitoring module first, so no numbers are shown.">
               <ul className="space-y-2 text-sm text-[var(--foreground-secondary)]">
                 {NOT_YET.map((t) => (
                   <li key={t} className="flex gap-2"><span aria-hidden="true">•</span>{t}</li>

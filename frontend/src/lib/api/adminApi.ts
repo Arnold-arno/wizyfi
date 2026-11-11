@@ -1,9 +1,10 @@
-// Super Admin endpoints under /platform-admin/. The agents list is a plain
-// array on the server (not paginated).
+// Super Admin endpoints under /platform-admin/.
+// CHANGED (Round 23): agents list is paginated + server-side search/filter/ordering;
+// PATCH /agents/{id}/ renames an account (backend Round 20).
 import { apiClient } from "./client";
 import type { Paginated } from "../../types/common";
 import type {
-  AgentDetail, AgentListItem, GrowthRange, PlatformActivity,
+  AgentDetail, AgentListItem, AgentListParams, GrowthRange, PlatformActivity,
   PlatformDashboard, PlatformPlan, PlatformPlanInput,
 } from "../../types/admin";
 
@@ -13,8 +14,12 @@ export const adminApi = {
   dashboard: (range: GrowthRange = "30d") =>
     apiClient.get<PlatformDashboard>(`${B}/dashboard/`, { params: { range } }),
 
-  agents: () => apiClient.get<AgentListItem[]>(`${B}/agents/`),
+  agents: (p: AgentListParams = {}) =>
+    apiClient.get<Paginated<AgentListItem>>(`${B}/agents/`, {
+      params: { page: p.page, page_size: p.pageSize, search: p.search, status: p.status, ordering: p.ordering },
+    }),
   agent: (id: string) => apiClient.get<AgentDetail>(`${B}/agents/${id}/`),
+  renameAgent: (id: string, name: string) => apiClient.patch<AgentDetail>(`${B}/agents/${id}/`, { name }),
   suspendAgent: (id: string, reason: string) =>
     apiClient.post<AgentDetail>(`${B}/agents/${id}/suspend/`, { reason }),
   restoreAgent: (id: string) => apiClient.post<AgentDetail>(`${B}/agents/${id}/restore/`, {}),
